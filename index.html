@@ -400,7 +400,14 @@ const ELEMENTE = 'H Wasserstoff,He Helium,Li Lithium,Be Beryllium,B Bor,C Kohlen
   .split(',').map((s,i)=>{ const [sym,name]=s.split(' '); return {nr:i+1, sym, name}; });
 const elOf = name => ELEMENTE.find(e=>e.name===name) || null;
 const freeEls = () => ELEMENTE.filter(e=>!S.karten.some(k=>k.name===e.name));
-const randomEl = () => { const f=freeEls(); if (!f.length) return null; return f[crypto.getRandomValues(new Uint32Array(1))[0] % f.length]; };
+// Empfohlene Decknamen (Liste der Einheit). Zufällig vergeben werden nur die 30 ohne Radon/Uran – die nur gezielt.
+const EMPFOHLEN = ['Helium','Lithium','Kohlenstoff','Stickstoff','Sauerstoff','Neon','Natrium','Magnesium','Silicium','Phosphor','Schwefel','Argon','Kalium','Calcium','Titan','Chrom','Eisen','Cobalt','Nickel','Kupfer','Zink','Krypton','Silber','Zinn','Iod','Xenon','Wolfram','Platin','Gold','Blei','Radon','Uran'];
+const ZUFALL = EMPFOHLEN.filter(n=>n!=='Radon' && n!=='Uran');
+const pick = f => f[crypto.getRandomValues(new Uint32Array(1))[0] % f.length];
+const randomEl = () => { const all=freeEls(); if (!all.length) return null; const fav=all.filter(e=>ZUFALL.includes(e.name)); return pick(fav.length ? fav : all); };
+const elOptions = (list, sel) => { const o=e=>`<option value="${e.name}" ${e.name===sel?'selected':''}>${e.nr} · ${e.sym} · ${e.name}${e.name==='Radon'||e.name==='Uran'?' (Augenzwinkern)':''}</option>`;
+  const a=list.filter(e=>EMPFOHLEN.includes(e.name)), b=list.filter(e=>!EMPFOHLEN.includes(e.name));
+  return (a.length?`<optgroup label="Empfohlen">${a.map(o).join('')}</optgroup>`:'') + (b.length?`<optgroup label="Weitere Elemente">${b.map(o).join('')}</optgroup>`:''); };
 
 /* ---------- Verschlüsselung der Klarnamen ----------
    Die echten Namen werden im Browser mit AES-GCM verschlüsselt (Schlüssel aus dem
@@ -884,7 +891,7 @@ function wahlPanel(k){
   if (k.freigegeben===false && k.wahl==='deck'){
     const opts=[elOf(k.name), ...freeEls()].filter(Boolean);
     return `<div class="notice stack" style="gap:8px"><b>Deckname gewünscht (am ${d(k.wahl_am)})</b><span>Vergib den Decknamen und schalte die Karte frei.</span>
-      <select id="relEl" class="inp">${opts.map(e=>`<option value="${e.name}" ${e.name===k.name?'selected':''}>${e.nr} · ${e.sym} · ${e.name}</option>`).join('')}</select>
+      <select id="relEl" class="inp">${elOptions(opts, k.name)}</select>
       <button class="btn primary" data-act="release" data-id="${code}">Deckname vergeben &amp; freischalten</button></div>`;
   }
   if (k.wahl==='klar') return `<div class="spread"><span>${OKCHIP} Einwilligung der Person vom ${d(k.einwilligung||k.wahl_am)}${k.name_enc?' <span class="muted">– Name wird beim Entsperren übernommen</span>':''}</span>${k.name_enc?'':`<button class="btn" data-act="ok-off" data-id="${code}">Auf Deckname umstellen</button>`}</div>`;
@@ -1009,7 +1016,7 @@ function cardForm(){
       <div class="seg3" role="group" aria-label="Art der Karte"><button type="button" data-mode="neu" aria-pressed="true">Neu verkauft</button><button type="button" data-mode="alt" aria-pressed="false">Bestehende übernehmen</button><button type="button" data-mode="leer" aria-pressed="false">Leer anlegen</button></div>
       <div class="field"><label class="label" for="cName">Name der Person</label><input id="cName" maxlength="60" required placeholder="Vor- und Nachname" autocomplete="off"><small class="muted" id="cNameHint">${LOCK} Wird auf diesem Gerät verschlüsselt. In der Datenbank steht nur das Element.</small></div>
       <div class="notice">Die Person entscheidet beim ersten Öffnen ihres Links selbst: Klarname (Einwilligung) oder Deckname. Erst dann wird die Karte freigeschaltet.</div>
-      <div class="field" id="cElRow"><label class="label" for="cEl">Element (Deckname auf der Karte)</label><select id="cEl"><option value="">Zufällig</option>${els.map(e=>`<option value="${e.name}">${e.nr} · ${e.sym} · ${e.name}</option>`).join('')}</select>
+      <div class="field" id="cElRow"><label class="label" for="cEl">Element (Deckname auf der Karte)</label><select id="cEl"><option value="">Zufällig aus der Empfehlungsliste</option>${elOptions(els)}</select>
         <small class="muted">Nicht nach Initialen wählen (Neumann ≠ Neon), sonst ist der Deckname leicht zu durchschauen.</small></div>
       <div class="notice" id="cLeerInfo" hidden>Die Karte wird ohne Guthaben angelegt. Link und QR-Code kannst du sofort verschicken. Restguthaben oder eine Aufladung buchst du später in der Karte über „+ Aufladen“.</div>
       <div class="field" id="cWertRow"><label class="label" for="cWert" id="cWertLbl">Wert (€)</label><input id="cWert" inputmode="decimal" class="num" value="${centsIn(S.config.wert)}"></div>
