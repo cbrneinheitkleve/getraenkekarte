@@ -104,6 +104,12 @@ div.item:hover{background:none}
 .dcard .bal{font-family:var(--f-mono);font-size:28px;font-weight:600;text-align:right}
 .dcard .sub{font-size:11px;color:var(--card-muted);text-transform:uppercase;letter-spacing:.1em}
 .dcard.off{filter:grayscale(1);opacity:.7}
+.dcard .elrow{display:flex;align-items:center;gap:12px}
+.eltile{flex:none;width:58px;height:58px;border:2px solid var(--kind,var(--amber));border-radius:8px;display:flex;flex-direction:column;justify-content:space-between;padding:4px 6px;line-height:1;color:var(--card-ink)}
+.eltile i{font-style:normal;font-family:var(--f-mono);font-size:11px;color:var(--card-muted)}
+.eltile b{font-family:var(--f-display);font-size:28px;font-weight:700;text-align:center;margin-bottom:4px}
+.klar{font-weight:400;color:var(--muted)}
+.lock{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--muted)}
 .badge img{width:100%;height:100%;object-fit:contain;border-radius:6px}
 .badge.hasLogo{background:transparent}
 .swatches{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
@@ -308,6 +314,7 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
       <div id="adminList" class="stack"></div>
       <form class="row" id="adminForm"><input id="adminEmail" class="inp" style="flex:1;min-width:0" type="email" placeholder="E-Mail" required><button class="btn" type="submit">Hinzufügen</button></form>
     </div>
+    <div class="panel stack" id="kryptoPanel"></div>
     <div class="panel stack">
       <h3>Bericht</h3>
       <p class="muted" style="margin:0">Kassenbericht für einen Monat, ein Jahr oder einen freien Zeitraum, mit Anfangs- und Endbestand, Einnahmen und Ausgaben nach Kategorie und allen Buchungen. Zum Ansehen, Drucken oder als PDF.</p>
@@ -353,7 +360,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSessi
 
 const $ = s => document.querySelector(s);
 const S = { mode:'loading', tab:'kasse', session:null, config:{einheit:'CBRN-Einheit', preis:150, wert:1000},
-  kasse:[], karten:[], buch:[], admins:[], qty:1, lastScan:null, holder:null, holderData:null, sheet:null, signup:false };
+  kasse:[], karten:[], buch:[], admins:[], qty:1, lastScan:null, holder:null, holderData:null, sheet:null, signup:false, klar:{}, klarCache:{} };
 const ANF = 'Anfangsbestand (Übertrag)';
 const KAT_IN = ['Getränkekarten-Verkauf', ANF,'Barverkauf','Pfandrückgabe','Spende/Zuschuss','Sonstiges'];
 const KAT_OUT = ['Getränkeeinkauf','Pfand','Verbrauchsmaterial','Sonstiges'];
@@ -376,6 +383,61 @@ function parseCode(raw){
   return m ? m[1] : null;
 }
 const cardLink = k => BASE + '?k=' + k.code + '&t=' + k.token;
+
+/* ---------- Decknamen (Elemente) ---------- */
+const ELEMENTE = 'H Wasserstoff,He Helium,Li Lithium,Be Beryllium,B Bor,C Kohlenstoff,N Stickstoff,O Sauerstoff,F Fluor,Ne Neon,Na Natrium,Mg Magnesium,Al Aluminium,Si Silicium,P Phosphor,S Schwefel,Cl Chlor,Ar Argon,K Kalium,Ca Calcium,Sc Scandium,Ti Titan,V Vanadium,Cr Chrom,Mn Mangan,Fe Eisen,Co Cobalt,Ni Nickel,Cu Kupfer,Zn Zink,Ga Gallium,Ge Germanium,As Arsen,Se Selen,Br Brom,Kr Krypton,Rb Rubidium,Sr Strontium,Y Yttrium,Zr Zirconium,Nb Niob,Mo Molybdän,Tc Technetium,Ru Ruthenium,Rh Rhodium,Pd Palladium,Ag Silber,Cd Cadmium,In Indium,Sn Zinn,Sb Antimon,Te Tellur,I Iod,Xe Xenon,Cs Caesium,Ba Barium,La Lanthan,Ce Cer,Pr Praseodym,Nd Neodym,Pm Promethium,Sm Samarium,Eu Europium,Gd Gadolinium,Tb Terbium,Dy Dysprosium,Ho Holmium,Er Erbium,Tm Thulium,Yb Ytterbium,Lu Lutetium,Hf Hafnium,Ta Tantal,W Wolfram,Re Rhenium,Os Osmium,Ir Iridium,Pt Platin,Au Gold,Hg Quecksilber,Tl Thallium,Pb Blei,Bi Bismut,Po Polonium,At Astat,Rn Radon,Fr Francium,Ra Radium,Ac Actinium,Th Thorium,Pa Protactinium,U Uran,Np Neptunium,Pu Plutonium,Am Americium,Cm Curium,Bk Berkelium,Cf Californium,Es Einsteinium,Fm Fermium,Md Mendelevium,No Nobelium,Lr Lawrencium,Rf Rutherfordium,Db Dubnium,Sg Seaborgium,Bh Bohrium,Hs Hassium,Mt Meitnerium,Ds Darmstadtium,Rg Roentgenium,Cn Copernicium,Nh Nihonium,Fl Flerovium,Mc Moscovium,Lv Livermorium,Ts Tenness,Og Oganesson'
+  .split(',').map((s,i)=>{ const [sym,name]=s.split(' '); return {nr:i+1, sym, name}; });
+const elOf = name => ELEMENTE.find(e=>e.name===name) || null;
+const freeEls = () => ELEMENTE.filter(e=>!S.karten.some(k=>k.name===e.name));
+const randomEl = () => { const f=freeEls(); if (!f.length) return null; return f[crypto.getRandomValues(new Uint32Array(1))[0] % f.length]; };
+
+/* ---------- Verschlüsselung der Klarnamen ----------
+   Die echten Namen werden im Browser mit AES-GCM verschlüsselt (Schlüssel aus dem
+   Admin-Passwort per PBKDF2). Supabase speichert nur den Zeichensalat in karten.name_enc
+   und das Element in karten.name. Ohne Passwort kann niemand die Namen lesen. */
+const KR = { key:null };
+const KEYSTORE = 'cbrnSchluessel:' + SUPABASE_URL;
+const te = new TextEncoder(), td = new TextDecoder();
+const b64 = buf => { let s=''; for (const b of new Uint8Array(buf)) s+=String.fromCharCode(b); return btoa(s); };
+const unb64 = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
+async function deriveKey(pw, salt, iter){
+  const base = await crypto.subtle.importKey('raw', te.encode(pw), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations:iter, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, true, ['encrypt','decrypt']);
+}
+async function encWith(key, text){ const iv=crypto.getRandomValues(new Uint8Array(12)); const ct=await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, te.encode(text)); return 'v1:'+b64(iv)+':'+b64(ct); }
+async function decWith(key, s){ const [, iv, ct] = String(s).split(':'); return td.decode(await crypto.subtle.decrypt({name:'AES-GCM', iv:unb64(iv)}, key, unb64(ct))); }
+const enc = text => encWith(KR.key, text);
+const hasKrypto = () => !!(S.config && S.config.krypto && S.config.krypto.salt);
+async function unlock(pw, remember){
+  const kc=S.config.krypto, key=await deriveKey(pw, unb64(kc.salt), kc.iter);
+  try{ if (await decWith(key, kc.check)!=='CBRN-OK') throw 0; }catch(e){ return false; }
+  KR.key=key; if (remember) await rememberKey(); await decryptAll(); return true;
+}
+async function setupKrypto(pw, remember){
+  const salt=crypto.getRandomValues(new Uint8Array(16)), iter=600000, key=await deriveKey(pw, salt, iter);
+  const krypto={v:1, salt:b64(salt), iter, check: await encWith(key,'CBRN-OK'), seit:new Date().toISOString()};
+  await q(sb.from('config').update({krypto}).eq('id',1));
+  S.config.krypto=krypto; KR.key=key; if (remember) await rememberKey();
+}
+async function rememberKey(){ try{ localStorage.setItem(KEYSTORE, b64(await crypto.subtle.exportKey('raw', KR.key))); }catch(e){} }
+async function restoreKey(){
+  if (KR.key || !hasKrypto()) return;
+  try{ const raw=localStorage.getItem(KEYSTORE); if (!raw) return;
+    const key=await crypto.subtle.importKey('raw', unb64(raw), {name:'AES-GCM'}, true, ['encrypt','decrypt']);
+    if (await decWith(key, S.config.krypto.check)==='CBRN-OK') KR.key=key; else localStorage.removeItem(KEYSTORE);
+  }catch(e){ try{ localStorage.removeItem(KEYSTORE); }catch(_){} }
+}
+function lockKey(){ KR.key=null; S.klar={}; try{ localStorage.removeItem(KEYSTORE); }catch(e){} }
+async function decryptAll(){
+  if (!KR.key) return; const out={};
+  for (const k of S.karten) if (k.name_enc){ try{ out[k.code] = S.klarCache[k.name_enc] ?? (S.klarCache[k.name_enc] = await decWith(KR.key, k.name_enc)); }catch(e){} }
+  S.klar=out;
+}
+const klar = k => k ? (S.klar[k.code] || (!k.name_enc && !elOf(k.name) ? k.name : null)) : null;  // alte Karten: Klarname steht noch in name
+const legacy = () => S.karten.filter(k=>!k.name_enc && !elOf(k.name));
+const disp = k => { if (!k) return ''; const c=klar(k); return c && c!==k.name ? c+' ('+k.name+')' : k.name; };
+const LOCK = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+const nameHTML = k => { const c=klar(k); return c && c!==k.name ? `<b>${esc(c)}</b> <span class="klar">${esc(k.name)}</span>` : `<b>${esc(k.name)}</b>${k.name_enc && !c ? ` <span class="lock">${LOCK}</span>`:''}`; };
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const FARBEN = [['#17231F','Dunkelgrün'],['#9E1B1B','Feuerwehrrot'],['#13294B','Nachtblau'],['#111111','Schwarz'],['#3B4046','Anthrazit'],['#FFFFFF','Weiß']];
 const AKZENTE = [['#F2B705','Gelb'],['#F07D00','Orange'],['#D32F2F','Rot'],['#FFFFFF','Weiß'],['#C9CED2','Silber'],['#2E7D32','Grün']];
@@ -395,7 +457,7 @@ function applyBrand(){
 
 let toastT;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2800); }
-function fail(e, what){ console.warn(e); if (/bezahlt/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-zahlungen.sql ausführen.'); toast((what||'Speichern')+' fehlgeschlagen' + (e && e.message ? ': '+e.message : '')); }
+function fail(e, what){ console.warn(e); if (/name_enc|krypto/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-pseudonyme.sql ausführen.'); if (/bezahlt/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-zahlungen.sql ausführen.'); toast((what||'Speichern')+' fehlgeschlagen' + (e && e.message ? ': '+e.message : '')); }
 async function q(p){ const {data, error} = await p; if (error) throw error; return data; }
 
 /* ---------- Berechnungen ---------- */
@@ -413,8 +475,9 @@ function drawQR(canvas, text, px){
 }
 function cardHTML(code, name, bal, aktiv=true, einheit, th){
   th = th || curTheme(); const unit = esc(einheit||S.config.einheit);
+  const el = elOf(name), nm = `<div class="name">${esc(name)}</div>`;
   return `<div class="dcard ${aktiv?'':'off'}" style="${cardStyle(th)}">
-    <div class="hd"><div><div class="kind">Getränkekarte</div><div class="name">${esc(name)}</div>${th.logo?`<div class="unit">${unit}</div>`:''}</div>${th.logo?`<img class="logo" src="${th.logo}" alt="">`:`<div class="sub" style="text-align:right">${unit}</div>`}</div>
+    <div class="hd"><div><div class="kind">Getränkekarte</div>${el?`<div class="elrow"><div class="eltile"><i>${el.nr}</i><b>${el.sym}</b></div>${nm}</div>`:nm}${th.logo?`<div class="unit">${unit}</div>`:''}</div>${th.logo?`<img class="logo" src="${th.logo}" alt="">`:`<div class="sub" style="text-align:right">${unit}</div>`}</div>
     <div class="qr"><canvas data-qr="${esc(code)}" aria-label="QR-Code der Karte ${esc(code)}"></canvas></div>
     <div class="ft"><div><div class="sub">Code</div><div class="code">${esc(code)}</div></div>
     <div><div class="sub" style="text-align:right">${aktiv?'Guthaben':'Deaktiviert'}</div><div class="bal">${bal==null?'–':eur(bal)}</div></div></div></div>`;
@@ -518,20 +581,25 @@ function renderKarten(){
     <div><span class="label">Aufgeladen gesamt</span><span class="mid">${eur(sum('auf'))}</span></div>
     <div><span class="label">Abgebucht gesamt</span><span class="mid">${eur(sum('ab'))}</span></div></div>`;
   const op = openPay();
-  const list = S.karten.filter(k=>(!S.onlyOpen || op[k.code]) && (!qs || k.name.toLowerCase().includes(qs) || k.code.toLowerCase().includes(qs)))
-    .sort((a,b)=>(!a.aktiv)-(!b.aktiv) || a.name.localeCompare(b.name,'de'));
-  const filt = S.onlyOpen ? `<div class="spread notice"><span>Nur Karten mit offener Zahlung</span><button class="btn" data-act="show-all">Alle zeigen</button></div>` : '';
+  const sortName = k => klar(k) || k.name;
+  const list = S.karten.filter(k=>(!S.onlyOpen || op[k.code]) && (!qs || k.name.toLowerCase().includes(qs) || k.code.toLowerCase().includes(qs) || (klar(k)||'').toLowerCase().includes(qs)))
+    .sort((a,b)=>(!a.aktiv)-(!b.aktiv) || sortName(a).localeCompare(sortName(b),'de'));
+  const nLeg = legacy().length, locked = hasKrypto() && !KR.key && S.karten.some(k=>k.name_enc);
+  const filt = (locked ? `<div class="spread notice"><span>${LOCK} Namen sind verschlüsselt. Zum Anzeigen entsperren.</span><button class="btn" data-act="krypto">Entsperren</button></div>`
+      : nLeg ? `<div class="spread notice"><span>${nLeg} ${nLeg===1?'Karte hat':'Karten haben'} noch einen Klarnamen in der Datenbank.</span><button class="btn" data-act="${KR.key?'krypto-migrate':'krypto'}">Umstellen</button></div>` : '')
+    + (S.onlyOpen ? `<div class="spread notice"><span>Nur Karten mit offener Zahlung</span><button class="btn" data-act="show-all">Alle zeigen</button></div>` : '');
   $('#kartenList').innerHTML = filt + (!S.karten.length ? `<div class="cards"><div class="empty">Noch keine Getränkekarten. Lege mit „+ Neue Karte“ die erste an und schick den Link an die Person.</div></div>`
     : !list.length ? `<div class="cards"><div class="empty">Keine Karte passt zu „${esc(qs)}“.</div></div>`
     : `<div class="cards">${list.map(k=>{ const b=bal[k.code]||0, max=Math.max(k.wert,b), pct=max>0?Math.max(0,Math.min(100,b/max*100)):0;
-      return `<div class="crow" role="button" tabindex="0" data-act="card" data-id="${k.code}"><span><b>${esc(k.name)}</b> <span class="muted num" style="font-size:13px">${k.code}</span>${k.aktiv?'':' <span class="chip" style="color:var(--neg);border-color:var(--neg)">gesperrt</span>'}${op[k.code]?` <span class="chip" style="color:var(--neg);border-color:var(--neg)">${eur(op[k.code])} offen</span>`:''}</span>
+      return `<div class="crow" role="button" tabindex="0" data-act="card" data-id="${k.code}"><span>${nameHTML(k)} <span class="muted num" style="font-size:13px">${k.code}</span>${k.aktiv?'':' <span class="chip" style="color:var(--neg);border-color:var(--neg)">gesperrt</span>'}${op[k.code]?` <span class="chip" style="color:var(--neg);border-color:var(--neg)">${eur(op[k.code])} offen</span>`:''}</span>
       <span class="num" style="font-weight:600">${eur(b)}</span>${sentBtn(k)}<span class="meter"><i class="${b<S.config.preis?'low':''}" style="width:${pct}%"></i></span></div>`;}).join('')}</div>`);
-  const names = Object.fromEntries(S.karten.map(k=>[k.code,k.name]));
+  const names = Object.fromEntries(S.karten.map(k=>[k.code,disp(k)]));
   const recent = S.buch.filter(b=>b.typ==='ab').sort((a,b)=>b.created_at.localeCompare(a.created_at)).slice(0,25);
   $('#buchList').innerHTML = recent.length ? `<div class="list">${recent.map(b=>`<div class="item"><span class="date">${fmtTs(b.created_at).replace(', ','<br>')}</span><span class="t"><b>${esc(names[b.karte]||b.karte)}</b><small class="num">${b.karte}${b.anzahl>1?' · '+b.anzahl+' Getränke':''}</small></span><span class="amt neg">−${eur(b.betrag)}</span></div>`).join('')}</div>`
     : `<div class="list"><div class="empty">Noch keine Abbuchungen.</div></div>`;
 }
 
+const scanName = r => { const k=S.karten.find(x=>x.code===r.code); return k ? disp(k) : (r.name||r.code); };
 function renderScan(){
   $('#preisLbl').textContent = eur(S.config.preis);
   $('#qty').innerHTML = [1,2,3,4].map(n=>`<button data-act="qty" data-n="${n}" aria-pressed="${S.qty===n}">${n}×</button>`).join('');
@@ -539,7 +607,7 @@ function renderScan(){
   if (!r){ el.innerHTML=''; return; }
   if (r.err){ el.innerHTML = `<div class="result err" role="status"><b>${esc(r.err)}</b>${r.hint?`<span class="muted">${esc(r.hint)}</span>`:''}</div>`; return; }
   el.innerHTML = `<div class="result" role="status"><div class="spread"><span class="label">Abgebucht${r.anzahl>1?' · '+r.anzahl+' Getränke':''}</span><span class="muted num">${fmtTs(r.ts)}</span></div>
-    <div class="spread"><h3>${esc(r.name)}</h3><span class="big neg">−${eur(r.betrag)}</span></div>
+    <div class="spread"><h3>${esc(scanName(r))}</h3><span class="big neg">−${eur(r.betrag)}</span></div>
     <div class="spread"><span class="muted">Restguthaben</span><b class="num" style="font-size:20px">${eur(r.guthaben)}</b></div>
     ${r.undone?'<span class="muted">Abbuchung zurückgenommen.</span>':`<button class="btn" data-act="undo">Rückgängig</button>`}</div>`;
 }
@@ -551,6 +619,7 @@ function renderCfg(){
   if (!look.dirty) { look.farbe=themeOf(S.config).farbe; look.akzent=themeOf(S.config).akzent; look.logo=themeOf(S.config).logo; renderLook(); }
   const me = (S.session?.user?.email||'').toLowerCase();
   $('#whoami').textContent = 'Angemeldet als ' + (S.session?.user?.email||'');
+  renderKryptoPanel();
   $('#adminList').innerHTML = S.admins.map(a=>`<div class="spread"><span>${esc(a.email)}</span>${a.email.toLowerCase()===me?'<span class="muted">du</span>':`<button class="btn danger" data-act="del-admin" data-id="${esc(a.email)}">Entfernen</button>`}</div>`).join('');
 }
 
@@ -632,7 +701,7 @@ function renderLook(){
   $('#swAkzent').innerHTML = swatchHTML(AKZENTE, look.akzent, 'akzent');
   $('#lookLogoPrev').hidden = !look.logo; if (look.logo) $('#lookLogoPrev').src = look.logo;
   $('#lookLogoDel').hidden = !look.logo;
-  $('#lookPreview').innerHTML = cardHTML('K7Q3XM', 'Max Mustermann', 850, true, S.config.einheit, themeOf(look));
+  $('#lookPreview').innerHTML = cardHTML('K7Q3XM', 'Cobalt', 850, true, S.config.einheit, themeOf(look));
   paintQRs($('#lookPreview'));
   $('#lookSave').disabled = !look.dirty;
 }
@@ -660,6 +729,7 @@ async function loadAll(){
       q(sb.from('admins').select('*'))
     ]);
     if (cfg) S.config = cfg; S.kasse=kasse; S.karten=karten; S.buch=buch; S.admins=admins;
+    await restoreKey(); await decryptAll();
     render();
   }catch(e){ fail(e,'Laden'); }
 }
@@ -678,6 +748,69 @@ async function decideMode(){
   }
   if (S.holder && !S.forceLogin){ S.mode='holder'; render(); await loadHolder(); return; }
   S.mode='login'; render();
+}
+
+/* ---------- Datenschutz: Schlüssel & Umstellung ---------- */
+function renderKryptoPanel(){
+  const n=legacy().length, nEnc=S.karten.filter(k=>k.name_enc).length;
+  $('#kryptoPanel').innerHTML = `<h3>Datenschutz – Namen verschlüsseln</h3>
+    <p class="muted" style="margin:0">Auf den Karten und in der Datenbank steht nur ein Element als Deckname. Die echten Namen werden auf dem Handy mit einem gemeinsamen Admin-Passwort verschlüsselt. Supabase sieht nur Zeichensalat.</p>
+    ${!hasKrypto() ? `<div class="notice">Noch nicht eingerichtet.</div><button class="btn primary" data-act="krypto">Einrichten</button>`
+      : !KR.key ? `<div class="spread"><span class="lock">${LOCK} Gesperrt – Namen nicht sichtbar</span><button class="btn primary" data-act="krypto">Entsperren</button></div>`
+      : `<div class="spread"><span>Entsperrt · ${nEnc} ${nEnc===1?'Name':'Namen'} verschlüsselt</span><button class="btn" data-act="krypto-lock">Auf diesem Gerät sperren</button></div>
+         ${n ? `<div class="notice stack" style="gap:8px"><b>${n} ${n===1?'Karte hat':'Karten haben'} noch einen Klarnamen.</b><span>Beim Umstellen bekommt jede Karte ein zufälliges freies Element, der Name wird verschlüsselt und auch aus den Texten im Kassenbuch entfernt. Links und QR-Codes bleiben gleich.</span><button class="btn primary" data-act="krypto-migrate">Jetzt umstellen</button></div>` : ''}`}`;
+}
+function kryptoSheet(next){
+  S.kryptoNext = next || null;
+  if (!(window.crypto && crypto.subtle)){ toast('Verschlüsselung braucht eine sichere Verbindung (https).'); return; }
+  const remember = `<label class="check"><input type="checkbox" id="krMerk"><span>Auf diesem Gerät merken. Nur auf eigenen, gesperrten Handys – wer das Handy hat, sieht dann die Namen.</span></label>`;
+  if (!hasKrypto()){
+    openSheet(`${sheetHead('Verschlüsselung einrichten')}
+      <div class="notice stack" style="gap:6px"><b>Ein Passwort für alle Admins</b><span>Damit werden die Namen verschlüsselt. Es wird nirgends gespeichert und kann nicht zurückgesetzt werden.</span><span><b>Geht es verloren, sind die Namen weg.</b> Karten, Guthaben und Abbuchen funktionieren trotzdem weiter. Bewahrt es an zwei sicheren Stellen auf, z. B. im Passwortmanager und auf Papier in der Kasse.</span></div>
+      <form id="krForm" class="stack" style="gap:14px">
+        <div class="field"><label class="label" for="krPw">Passwort (mind. 10 Zeichen)</label><input id="krPw" type="password" autocomplete="new-password" minlength="10" required></div>
+        <div class="field"><label class="label" for="krPw2">Passwort wiederholen</label><input id="krPw2" type="password" autocomplete="new-password" minlength="10" required></div>
+        ${remember}<button class="btn primary wide" type="submit" id="krBtn">Einrichten</button><div id="krMsg"></div></form>`, {kind:'krypto'});
+  } else {
+    openSheet(`${sheetHead('Namen entsperren')}
+      <form id="krForm" class="stack" style="gap:14px">
+        <div class="field"><label class="label" for="krPw">Admin-Passwort für die Namen</label><input id="krPw" type="password" autocomplete="current-password" required></div>
+        ${remember}<button class="btn primary wide" type="submit" id="krBtn">Entsperren</button><div id="krMsg"></div></form>`, {kind:'krypto'});
+  }
+  setTimeout(()=>$('#krPw')&&$('#krPw').focus(), 50);
+  $('#krForm').onsubmit = async ev=>{
+    ev.preventDefault(); const pw=$('#krPw').value, merk=$('#krMerk').checked, btn=$('#krBtn'); $('#krMsg').innerHTML='';
+    if (!hasKrypto()){
+      if (pw.length<10){ $('#krMsg').innerHTML='<div class="notice">Mindestens 10 Zeichen.</div>'; return; }
+      if (pw!==$('#krPw2').value){ $('#krMsg').innerHTML='<div class="notice">Die Passwörter stimmen nicht überein.</div>'; return; }
+    }
+    btn.disabled=true; btn.textContent='Einen Moment …';
+    try{
+      if (!hasKrypto()){ await setupKrypto(pw, merk); toast('Verschlüsselung eingerichtet'); }
+      else if (!(await unlock(pw, merk))){ $('#krMsg').innerHTML='<div class="notice">Passwort falsch.</div>'; btn.disabled=false; btn.textContent='Entsperren'; return; }
+      else toast('Entsperrt');
+      const nx=S.kryptoNext; closeSheet(); render(); if (nx==='new-card') cardForm();
+    }catch(e){ fail(e); btn.disabled=false; btn.textContent=hasKrypto()?'Entsperren':'Einrichten'; }
+  };
+}
+async function migrateLegacy(btn){
+  if (!KR.key) return kryptoSheet();
+  const list=legacy(); if (!list.length) return;
+  if (btn){ btn.disabled=true; btn.textContent='Wird umgestellt …'; }
+  let done=0;
+  try{
+    for (const k of list){
+      const el=randomEl(); if (!el){ toast('Nicht genug freie Elemente.'); break; }
+      const alt=k.name, name_enc=await enc(alt);
+      await q(sb.from('karten').update({name:el.name, name_enc}).eq('code',k.code));
+      k.name=el.name; k.name_enc=name_enc; S.klarCache[name_enc]=alt; S.klar[k.code]=alt;
+      for (const e of S.kasse.filter(e=>e.karte===k.code && e.text && e.text.includes(alt))){
+        const text=e.text.split(alt).join(el.name); await q(sb.from('kasse').update({text}).eq('id',e.id)); e.text=text; }
+      done++;
+    }
+    toast(done+' '+(done===1?'Karte':'Karten')+' umgestellt');
+  }catch(e){ fail(e,'Umstellen'); }
+  await loadAll();
 }
 
 /* ---------- Sheets ---------- */
@@ -731,10 +864,14 @@ async function entryDetail(id){
 }
 
 function cardForm(){
+  if (!hasKrypto() || !KR.key){ kryptoSheet('new-card'); return; }
+  const els = freeEls();
   openSheet(`${sheetHead('Neue Getränkekarte')}
     <form id="cardForm" class="stack" style="gap:14px">
       <div class="seg3" role="group" aria-label="Art der Karte"><button type="button" data-mode="neu" aria-pressed="true">Neu verkauft</button><button type="button" data-mode="alt" aria-pressed="false">Bestehende übernehmen</button><button type="button" data-mode="leer" aria-pressed="false">Leer anlegen</button></div>
-      <div class="field"><label class="label" for="cName">Name der Person</label><input id="cName" maxlength="60" required placeholder="Vor- und Nachname"></div>
+      <div class="field"><label class="label" for="cName">Name der Person</label><input id="cName" maxlength="60" required placeholder="Vor- und Nachname" autocomplete="off"><small class="muted">${LOCK} Wird auf diesem Gerät verschlüsselt. In der Datenbank steht nur das Element.</small></div>
+      <div class="field"><label class="label" for="cEl">Element (Deckname auf der Karte)</label><select id="cEl"><option value="">Zufällig</option>${els.map(e=>`<option value="${e.name}">${e.nr} · ${e.sym} · ${e.name}</option>`).join('')}</select>
+        <small class="muted">Nicht nach Initialen wählen (Neumann ≠ Neon), sonst ist der Deckname leicht zu durchschauen.</small></div>
       <div class="notice" id="cLeerInfo" hidden>Die Karte wird ohne Guthaben angelegt. Link und QR-Code kannst du sofort verschicken. Restguthaben oder eine Aufladung buchst du später in der Karte über „+ Aufladen“.</div>
       <div class="field" id="cWertRow"><label class="label" for="cWert" id="cWertLbl">Wert (€)</label><input id="cWert" inputmode="decimal" class="num" value="${centsIn(S.config.wert)}"></div>
       <label class="check" id="cPaidRow"><input type="checkbox" id="cPaid" checked><span>Bezahlt – als Einnahme ins Kassenbuch eintragen. Ohne Haken bleibt die Zahlung offen und kann später nachgebucht werden.</span></label>
@@ -746,21 +883,25 @@ function cardForm(){
     const alt=b.dataset.mode==='alt', leer=b.dataset.mode==='leer'; $('#cWertLbl').textContent = alt?'Restguthaben (€)':'Wert (€)'; $('#cWertRow').hidden=leer; $('#cPaidRow').hidden=alt||leer; $('#cAltInfo').hidden=!alt; $('#cLeerInfo').hidden=!leer; $('#cSave').textContent = alt?'Karte übernehmen':(leer?'Leere Karte anlegen':'Karte anlegen'); if (alt) $('#cWert').select(); });
   f.onsubmit = async ev=>{
     ev.preventDefault(); const name=$('#cName').value.trim(), wert=toCents($('#cWert').value), alt=f.dataset.mode==='alt', leer=f.dataset.mode==='leer';
+    const el = $('#cEl').value ? elOf($('#cEl').value) : randomEl();
+    if (!el){ toast('Alle 118 Elemente sind vergeben.'); return; }
+    if (S.karten.some(k=>k.name===el.name)){ toast(el.name+' ist schon vergeben.'); return; }
+    if (!KR.key){ kryptoSheet(); return; }
     if (leer){
       if (!name){ toast('Bitte einen Namen angeben.'); return; }
       $('#cSave').disabled=true; const code=newCode();
-      try{ await q(sb.from('karten').insert({code, name, wert:S.config.wert})); closeSheet(); toast('Leere Karte angelegt'); await loadAll(); openCard(code); }
+      try{ await q(sb.from('karten').insert({code, name:el.name, name_enc:await enc(name), wert:S.config.wert})); closeSheet(); toast('Leere Karte angelegt'); await loadAll(); openCard(code); }
       catch(e){ fail(e); $('#cSave').disabled=false; }
       return;
     }
     if (!name || !(wert>0)){ toast(alt?'Name und Restguthaben angeben.':'Name und Wert angeben.'); return; }
     $('#cSave').disabled=true; const code=newCode();
     try{
-      await q(sb.from('karten').insert({code, name, wert: alt ? Math.max(wert, S.config.wert) : wert}));
+      await q(sb.from('karten').insert({code, name:el.name, name_enc:await enc(name), wert: alt ? Math.max(wert, S.config.wert) : wert}));
       const paid = alt || $('#cPaid').checked;
       await q(sb.from('buchungen').insert(paid ? {karte:code, typ:'auf', betrag:wert} : {karte:code, typ:'auf', betrag:wert, bezahlt:false}));
-      if (paid && !alt) await q(sb.from('kasse').insert({typ:'ein', betrag:wert, datum:today(), kategorie:'Getränkekarten-Verkauf', text:'Getränkekarte – '+name, karte:code}));
-      closeSheet(); toast(alt?'Karte mit '+eur(wert)+' übernommen':'Karte angelegt'); await loadAll(); openCard(code);
+      if (paid && !alt) await q(sb.from('kasse').insert({typ:'ein', betrag:wert, datum:today(), kategorie:'Getränkekarten-Verkauf', text:'Getränkekarte – '+el.name, karte:code}));
+      closeSheet(); toast((alt?'Karte mit '+eur(wert)+' übernommen':'Karte angelegt')+' – '+el.name); await loadAll(); openCard(code);
     }catch(e){ fail(e); $('#cSave').disabled=false; }
   };
 }
@@ -779,7 +920,7 @@ async function markSent(code){
 function confirmDeact(code){
   const k=S.karten.find(x=>x.code===code); if (!k) return;
   openSheet(`${sheetHead('Karte sperren')}
-    <div class="notice stack" style="gap:6px"><b>Karte von ${esc(k.name)} wirklich inaktivieren?</b>
+    <div class="notice stack" style="gap:6px"><b>Karte von ${esc(disp(k))} wirklich inaktivieren?</b>
     <span>Die Karte bleibt mit Guthaben und Verlauf erhalten, kann aber nicht mehr zum Abbuchen benutzt werden. Du kannst sie jederzeit wieder aktivieren.</span></div>
     <div class="row"><button class="btn danger" data-act="deact-go" data-id="${code}">Ja, inaktivieren</button><button class="btn" data-act="close">Abbrechen</button></div>`, {kind:'confirm', id:code});
 }
@@ -788,7 +929,10 @@ function openCard(code){
   const k=S.karten.find(x=>x.code===code); if(!k) return;
   const bal=balances()[code]||0, hist=S.buch.filter(b=>b.karte===code).sort((a,b)=>b.created_at.localeCompare(a.created_at));
   const canShare = !!navigator.share;
+  const kn = klar(k);
   openSheet(`${sheetHead('Karte')}
+    ${kn && kn!==k.name ? `<div class="spread"><span class="label">Gehört</span><b>${esc(kn)}</b></div>` : k.name_enc ? `<div class="spread"><span class="lock">${LOCK} Name verschlüsselt</span><button class="btn" data-act="krypto">Entsperren</button></div>` : ''}
+    ${!k.name_enc && !elOf(k.name) ? `<div class="notice">Diese Karte hat noch einen Klarnamen in der Datenbank. Unter „Mehr → Datenschutz“ auf Element-Decknamen umstellen.</div>` : ''}
     ${cardHTML(code, k.name, bal, k.aktiv)}
     <div class="panel stack">
       <span class="label">Karte verschicken</span>
@@ -806,7 +950,7 @@ function openCard(code){
       <button class="btn danger" data-act="del-card" data-id="${code}">Karte löschen</button></div>`, {kind:'karte', id:code});
   paintQRs($('#sheetPanel'));
 }
-const shareText = k => `Hallo ${k.name}, hier ist deine digitale Getränkekarte (${S.config.einheit}):\n${cardLink(k)}\n\nLink öffnen und über „Teilen“ bzw. ⋮ → „Zum Home-Bildschirm“ aufs Handy legen. Dann einfach den QR-Code an der Getränkeausgabe zeigen.`;
+const shareText = k => { const kn=klar(k); return `Hallo${kn&&kn!==k.name?' '+kn:''}, hier ist deine digitale Getränkekarte „${k.name}“ (${S.config.einheit}):\n${cardLink(k)}\n\nLink öffnen und über „Teilen“ bzw. ⋮ → „Zum Home-Bildschirm“ aufs Handy legen. Dann einfach den QR-Code an der Getränkeausgabe zeigen.`; };
 
 /* ---------- Scannen ---------- */
 let stream=null, scanTimer=null, busy=false;
@@ -856,11 +1000,11 @@ async function book(code){
     const r = await q(sb.rpc('abbuchen',{p_code:code, p_anzahl:S.qty}));
     if (!r.ok){
       S.lastScan = r.fehler==='nicht_gefunden' ? {err:'Karte '+code+' nicht gefunden.', hint:'Code prüfen oder erneut scannen.'}
-        : r.fehler==='deaktiviert' ? {err:'Die Karte von '+r.name+' ist deaktiviert.'}
-        : {err:'Guthaben reicht nicht.', hint:r.name+' hat noch '+eur(r.guthaben)+', benötigt werden '+eur(r.betrag)+'.'};
+        : r.fehler==='deaktiviert' ? {err:'Die Karte von '+scanName({...r,code})+' ist deaktiviert.'}
+        : {err:'Guthaben reicht nicht.', hint:scanName({...r,code})+' hat noch '+eur(r.guthaben)+', benötigt werden '+eur(r.betrag)+'.'};
       if (navigator.vibrate) try{navigator.vibrate([80,60,80])}catch(e){}
     } else {
-      S.lastScan = {...r, ts:Date.now()}; S.qty=1; if (navigator.vibrate) try{navigator.vibrate(60)}catch(e){}
+      S.lastScan = {...r, code, ts:Date.now()}; S.qty=1; if (navigator.vibrate) try{navigator.vibrate(60)}catch(e){}
       loadAll();
     }
   }catch(e){ S.lastScan={err:'Abbuchen fehlgeschlagen.', hint:e.message||'Verbindung prüfen.'}; }
@@ -878,7 +1022,11 @@ async function cardImage(k){
   if (th.logo){ const im=await new Promise(r=>{ const i=new Image(); i.onload=()=>r(i); i.onerror=()=>r(null); i.src=th.logo; });
     if (im){ const s=Math.min(200/im.width,200/im.height), w=im.width*s, h=im.height*s; x.drawImage(im, W-80-w, 80, w, h); tw = W-160-220; } }
   x.fillStyle=kind; x.font='600 44px "Barlow Condensed", Arial Narrow, sans-serif'; x.fillText('GETRÄNKEKARTE',80,130);
-  x.fillStyle=ink; x.font='700 92px "Barlow Condensed", Arial Narrow, sans-serif'; x.fillText(k.name,80,235,tw);
+  const el=elOf(k.name); let nx=80;
+  if (el){ x.strokeStyle=kind; x.lineWidth=5; x.strokeRect(82,160,96,96);
+    x.fillStyle=mut; x.font='500 22px "IBM Plex Mono", monospace'; x.fillText(String(el.nr),92,186);
+    x.fillStyle=ink; x.font='700 52px "Barlow Condensed", Arial Narrow, sans-serif'; x.textAlign='center'; x.fillText(el.sym,130,240); x.textAlign='left'; nx=206; tw-=126; }
+  x.fillStyle=ink; x.font='700 92px "Barlow Condensed", Arial Narrow, sans-serif'; x.fillText(k.name,nx,235,tw);
   x.fillStyle=mut; x.font='500 36px Barlow, sans-serif'; x.fillText(S.config.einheit||'',80,295,tw);
   x.fillStyle='#fff'; x.fillRect(110,350,W-220,W-220);
   const qc=document.createElement('canvas'); drawQR(qc,qrText(k.code),W-260); x.imageSmoothingEnabled=false; x.drawImage(qc,130,370,W-260,W-260);
@@ -890,8 +1038,8 @@ function saveCSV(kind){
   const qv=v=>'"'+String(v??'').replace(/"/g,'""')+'"', n=c=>((c||0)/100).toFixed(2).replace('.',','); let rows;
   if (kind==='kasse'){ rows=[['Datum','Art','Kategorie','Beschreibung','Betrag','Beleg','Eingetragen von']];
     [...S.kasse].sort((a,b)=>a.datum.localeCompare(b.datum)||a.created_at.localeCompare(b.created_at)).forEach(e=>rows.push([e.datum,e.typ==='ein'?'Einnahme':'Ausgabe',e.kategorie,e.text,(e.typ==='ein'?'':'-')+n(e.betrag),e.beleg?'ja':'nein',e.von]));
-  } else { const names=Object.fromEntries(S.karten.map(k=>[k.code,k.name])); rows=[['Zeitpunkt','Karte','Name','Art','Anzahl','Betrag','Von']];
-    [...S.buch].sort((a,b)=>a.created_at.localeCompare(b.created_at)).forEach(b=>rows.push([fmtTs(b.created_at),b.karte,names[b.karte],b.typ==='auf'?'Aufladung':'Abbuchung',b.anzahl,(b.typ==='auf'?'':'-')+n(b.betrag),b.von])); }
+  } else { const byCode=Object.fromEntries(S.karten.map(k=>[k.code,k])); rows=[['Zeitpunkt','Karte','Element','Name','Art','Anzahl','Betrag','Von']];
+    [...S.buch].sort((a,b)=>a.created_at.localeCompare(b.created_at)).forEach(b=>rows.push([fmtTs(b.created_at),b.karte,byCode[b.karte]?.name,klar(byCode[b.karte])||'',b.typ==='auf'?'Aufladung':'Abbuchung',b.anzahl,(b.typ==='auf'?'':'-')+n(b.betrag),b.von])); }
   download(new Blob(['﻿'+rows.map(r=>r.map(qv).join(';')).join('\r\n')],{type:'text/csv'}), (kind==='kasse'?'Kassenbuch':'Kartenbuchungen')+'-'+today()+'.csv');
 }
 async function copy(text){
@@ -911,6 +1059,9 @@ document.addEventListener('click', async ev=>{
   const confirm2 = label => { if (t.dataset.confirm) return true; t.dataset.confirm='1'; t.textContent=label; return false; };
   try{
     if (a==='close') closeSheet();
+    else if (a==='krypto') kryptoSheet();
+    else if (a==='krypto-lock'){ lockKey(); render(); toast('Gesperrt – Namen ausgeblendet'); }
+    else if (a==='krypto-migrate') await migrateLegacy(t);
     else if (a==='new-entry') entryForm();
     else if (a==='anf') entryForm({typ:'ein', kat:ANF, text:'Übertrag vorhandener Kassenbestand'});
     else if (a==='entry') entryDetail(id);
@@ -926,7 +1077,7 @@ document.addEventListener('click', async ev=>{
     else if (a==='save-img'){ const blob=await cardImage(k), file=new File([blob],'Getraenkekarte-'+k.code+'.png',{type:'image/png'});
       if (navigator.canShare && navigator.canShare({files:[file]})) { try{ await navigator.share({files:[file], text:shareText(k)}); markSent(id); }catch(e){} } else { download(blob, file.name); markSent(id); } }
     else if (a==='sent-off') confirmDeact(id);
-    else if (a==='deact-go'){ t.disabled=true; await q(sb.from('karten').update({aktiv:false}).eq('code',id)); closeSheet(); toast('Karte von '+k.name+' gesperrt'); loadAll(); }
+    else if (a==='deact-go'){ t.disabled=true; await q(sb.from('karten').update({aktiv:false}).eq('code',id)); closeSheet(); toast('Karte von '+disp(k)+' gesperrt'); loadAll(); }
     else if (a==='topup'){ $('#topupRow').innerHTML = `<div class="panel stack" style="width:100%">
         <div class="field"><label class="label" for="tBetrag">Betrag (€)</label><input id="tBetrag" inputmode="decimal" class="num inp" value="${centsIn(S.config.wert)}"></div>
         <b>Wurde schon bezahlt?</b>
@@ -949,7 +1100,7 @@ document.addEventListener('click', async ev=>{
     else if (a==='del-card'){ if (!confirm2('Endgültig löschen? Nochmal tippen')) return;
       const alsoKasse = $('#delKasse') && $('#delKasse').checked;
       if (alsoKasse) await q(sb.from('kasse').delete().eq('karte',id));
-      await q(sb.from('karten').delete().eq('code',id)); closeSheet(); toast('Karte von '+k.name+' gelöscht'+(alsoKasse?' – Kassenbuch bereinigt':'')); loadAll(); }
+      await q(sb.from('karten').delete().eq('code',id)); closeSheet(); toast('Karte von '+disp(k)+' gelöscht'+(alsoKasse?' – Kassenbuch bereinigt':'')); loadAll(); }
     else if (a==='del-entry'){ if (!confirm2('Tippen zum endgültigen Löschen')) return; const e=S.kasse.find(x=>x.id===id);
       await q(sb.from('kasse').delete().eq('id',id)); if (e && e.beleg) sb.storage.from('belege').remove([e.beleg]); closeSheet(); toast('Buchung gelöscht'); loadAll(); }
     else if (a==='del-admin'){ if (!confirm2('Wirklich entfernen?')) return; await q(sb.from('admins').delete().eq('email',id)); toast('Entfernt'); loadAll(); }
@@ -957,7 +1108,7 @@ document.addEventListener('click', async ev=>{
     else if (a==='print'){ window.print(); }
     else if (a==='csv-kasse') saveCSV('kasse');
     else if (a==='csv-karten') saveCSV('karten');
-    else if (a==='logout'){ camStop(); await sb.auth.signOut(); S.session=null; S.forceLogin=false; decideMode(); }
+    else if (a==='logout'){ camStop(); lockKey(); await sb.auth.signOut(); S.session=null; S.forceLogin=false; decideMode(); }
     else if (a==='recheck') decideMode();
     else if (a==='to-login'){ S.forceLogin=true; S.mode='login'; render(); }
     else if (a==='to-card'){ S.forceLogin=false; decideMode(); }
