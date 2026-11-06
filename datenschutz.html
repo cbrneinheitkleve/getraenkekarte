@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="robots" content="noindex">
+<title>Datenschutz & Impressum – CBRN Getränkekasse</title>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+:root{
+  --bg:#EEF1EE; --surface:#FFFFFF; --ink:#16201C; --muted:#5B6862; --line:#D3DAD5;
+  --primary:#1F5C4A; --amber:#F2B705; --ph-bg:#FFF1B8; --ph-ink:#5A4300;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0E1412; --surface:#172019; --ink:#E6ECE8; --muted:#97A59E; --line:#2A3631;
+  --primary:#5DBE98; --ph-bg:#3A3110; --ph-ink:#F5DE8A; color-scheme:dark }}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{background:var(--surface);border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;gap:12px;padding-block:10px}
+header img{width:36px;height:36px;flex:none}
+header b{font-family:var(--f-display);font-size:21px;letter-spacing:.02em}
+header a{margin-left:auto;color:var(--primary);font-weight:600;text-decoration:none;padding:8px 0}
+main{padding-block:20px 32px}
+h1{font-family:var(--f-display);font-size:34px;line-height:1.1;margin:0 0 6px;text-wrap:balance}
+h2{font-family:var(--f-display);font-size:24px;margin:32px 0 8px;letter-spacing:.01em;text-wrap:balance}
+h3{font-size:16px;margin:18px 0 4px}
+p,li{max-width:65ch}
+ul{padding-left:20px;margin:6px 0}
+li{margin:4px 0}
+a{color:var(--primary)}
+.lead{color:var(--muted);margin:0}
+.ph{background:var(--ph-bg);color:var(--ph-ink);padding:1px 5px;border-radius:4px;font-weight:600}
+.note{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:10px;padding:12px 14px;margin:16px 0}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+footer{padding-block:8px 24px;text-align:center;font-size:12px;color:var(--muted)}
+:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+</style>
+</head>
+<body>
+<header><div class="wrap"><img src="favicon-32.png" alt=""><b>Getränkekasse</b><a href="./">Zurück zur App</a></div></header>
+<main class="wrap">
+  <h1>Datenschutz &amp; Impressum</h1>
+  <p class="lead">Getränkekasse und digitale Getränkekarten der Sondereinheit CBRN, Freiwillige Feuerwehr Kleve. Stand: November 2026.</p>
+
+  <div class="note"><b>Entwurf.</b> Gelb markierte Stellen sind noch auszufüllen bzw. vom Verantwortlichen (in der Regel die Stadt Kleve als Trägerin der Feuerwehr) und dessen Datenschutzbeauftragten zu prüfen.</div>
+
+  <h2>1. Verantwortlicher</h2>
+  <div class="box">
+    <span class="ph">Name der verantwortlichen Stelle, z. B. Stadt Kleve – Freiwillige Feuerwehr</span><br>
+    <span class="ph">Straße, Hausnummer</span><br>
+    <span class="ph">PLZ Ort</span><br>
+    E-Mail: <span class="ph">Kontakt-E-Mail</span>
+  </div>
+  <p>Ansprechpartnerin für die Getränkekasse: Simone Loosen, Sondereinheit CBRN.</p>
+
+  <h2>2. Datenschutzbeauftragter</h2>
+  <div class="box"><span class="ph">Name / Funktion, Anschrift, E-Mail des Datenschutzbeauftragten</span></div>
+
+  <h2>3. Wofür diese App da ist</h2>
+  <p>Die App dient ausschließlich der Verwaltung der Getränkekasse der Sondereinheit CBRN: Führen eines Kassenbuchs, Ausgabe und Abrechnung von digitalen Getränkekarten mit Guthaben sowie Erstellen von Kassenberichten. Es gibt keine Werbung, kein Tracking und keine Auswertung des Nutzungsverhaltens.</p>
+
+  <h2>4. Welche Daten verarbeitet werden</h2>
+  <h3>Karteninhaberinnen und Karteninhaber</h3>
+  <ul>
+    <li>Deckname der Karte (ein chemisches Element), Kartencode und ein geheimer Zugangsschlüssel, der im persönlichen Link enthalten ist</li>
+    <li>Guthaben, Aufladungen und Abbuchungen jeweils mit Zeitpunkt und Betrag, Zahlungsstatus von Aufladungen</li>
+    <li>Status der Karte (aktiv oder gesperrt) und ob bzw. wann die Karte verschickt wurde</li>
+    <li>Der echte Name wird <b>nur verschlüsselt</b> gespeichert (AES-256-GCM). Der Schlüssel entsteht aus einem Passwort, das nur die Admins kennen, und wird nicht an den Datenbank-Anbieter übertragen. Ohne dieses Passwort ist der Name für niemanden lesbar, auch nicht für den Anbieter.</li>
+  </ul>
+  <h3>Admins</h3>
+  <ul>
+    <li>E-Mail-Adresse und Passwort (beim Anbieter nur als Hash gespeichert), Zeitpunkte der Anmeldung</li>
+    <li>Bei Buchungen wird gespeichert, welcher Admin sie eingetragen hat</li>
+  </ul>
+  <h3>Kassenbuch</h3>
+  <ul>
+    <li>Datum, Betrag, Kategorie und Beschreibung von Einnahmen und Ausgaben</li>
+    <li>Fotos von Kassenzetteln (Belege). Diese enthalten in der Regel nur Angaben des Händlers, keine Daten der Karteninhaber.</li>
+  </ul>
+  <h3>Technische Daten beim Aufruf</h3>
+  <ul>
+    <li>Beim Aufruf der App werden technisch notwendig die IP-Adresse, Zeitpunkt, aufgerufene Adresse und Browserangaben an die unten genannten Anbieter übermittelt und dort kurzzeitig protokolliert.</li>
+    <li>Schriftarten und Programmbibliotheken werden von der App selbst ausgeliefert. Es werden <b>keine</b> Inhalte von Google oder anderen Drittanbietern nachgeladen.</li>
+  </ul>
+  <h3>Speicher auf dem eigenen Gerät</h3>
+  <ul>
+    <li>Die App nutzt den Speicher des Browsers (localStorage), keine Werbe- oder Analyse-Cookies.</li>
+    <li>Karteninhaber: Kartencode und Zugangsschlüssel, damit sich die Karte vom Startbildschirm direkt öffnet.</li>
+    <li>Admins: die Anmeldung sowie – nur wenn ausdrücklich gewählt – der Schlüssel zum Anzeigen der Namen („Auf diesem Gerät merken“). Beim Abmelden wird der Schlüssel gelöscht.</li>
+  </ul>
+
+  <h2>5. Rechtsgrundlage</h2>
+  <p><span class="ph">Vom Verantwortlichen zu prüfen.</span> In Betracht kommen insbesondere Art. 6 Abs. 1 lit. b DSGVO (Durchführung der Vereinbarung über die Getränkekarte mit Guthaben) und Art. 6 Abs. 1 lit. c DSGVO (Aufbewahrung von Kassenbelegen). Für die technisch notwendigen Daten beim Aufruf kommt Art. 6 Abs. 1 lit. f DSGVO bzw. lit. e in Verbindung mit dem DSG NRW in Betracht.</p>
+
+  <h2>6. Eingesetzte Dienstleister</h2>
+  <h3>Supabase (Datenbank, Anmeldung, Belegfotos)</h3>
+  <p>Supabase, Inc., USA. Die Daten werden auf Servern in Frankfurt am Main (EU) gespeichert. <span class="ph">Auftragsverarbeitungsvertrag mit Supabase abschließen und hier vermerken; Grundlage für einen möglichen Zugriff aus den USA angeben (z. B. Standardvertragsklauseln).</span></p>
+  <h3>GitHub Pages (Auslieferung der App)</h3>
+  <p>GitHub, Inc., USA (ein Unternehmen von Microsoft). GitHub liefert die Dateien der App aus und verarbeitet dabei die IP-Adresse der Aufrufenden. Gespeichert werden dort keine Kassen- oder Kartendaten. <span class="ph">Grundlage der Übermittlung in die USA angeben (z. B. EU-US Data Privacy Framework, sofern zutreffend).</span></p>
+  <p>Eine Weitergabe an sonstige Dritte findet nicht statt.</p>
+
+  <h2>7. Speicherdauer</h2>
+  <ul>
+    <li>Getränkekarten mit ihrem Verlauf: bis die Karte von einem Admin gelöscht wird, z. B. nach Ausscheiden aus der Einheit oder auf Wunsch. <span class="ph">Ggf. feste Frist ergänzen.</span></li>
+    <li>Kassenbuch und Belege: <span class="ph">Aufbewahrungsfrist nach den für die Kasse geltenden Vorgaben, z. B. 10 Jahre</span></li>
+    <li>Admin-Konten: bis zur Entfernung als Admin.</li>
+    <li>Technische Protokolle bei den Dienstleistern: nach deren Vorgaben, in der Regel wenige Tage bis Wochen.</li>
+  </ul>
+
+  <h2>8. Ihre Rechte</h2>
+  <p>Sie haben das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21). Wenden Sie sich dazu an den Verantwortlichen oder an die Getränkekasse der Einheit.</p>
+  <p>Sie können sich außerdem bei einer Datenschutz-Aufsichtsbehörde beschweren, in Nordrhein-Westfalen bei der Landesbeauftragten für Datenschutz und Informationsfreiheit NRW, Kavalleriestraße 2–4, 40213 Düsseldorf.</p>
+  <p>Es findet keine automatisierte Entscheidungsfindung und kein Profiling statt.</p>
+
+  <h2 id="impressum">Impressum</h2>
+  <div class="box">
+    <span class="ph">Anbieter / verantwortliche Stelle (wie oben)</span><br>
+    <span class="ph">Anschrift</span><br>
+    E-Mail: <span class="ph">Kontakt-E-Mail</span><br>
+    Vertreten durch: <span class="ph">z. B. Leitung der Feuerwehr</span>
+  </div>
+  <p>Konzeption und Inhalt der App: Simone Loosen, Sondereinheit CBRN, Freiwillige Feuerwehr Kleve.</p>
+  <p>Die App ist ein internes Werkzeug der Einheit und nicht für die Öffentlichkeit bestimmt.</p>
+</main>
+<footer><div class="wrap">© 2026 Simone Loosen · Sondereinheit CBRN · Freiwillige Feuerwehr Kleve · Alle Rechte vorbehalten</div></footer>
+</body>
+</html>

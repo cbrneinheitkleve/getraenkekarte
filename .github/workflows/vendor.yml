@@ -1,9 +1,6 @@
 name: Bibliotheken lokal ablegen
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ['.github/workflows/vendor.yml']
 permissions:
   contents: write
 jobs:
