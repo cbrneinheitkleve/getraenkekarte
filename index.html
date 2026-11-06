@@ -492,6 +492,7 @@ function histHTML(list){
 }
 function setIcon(th){
   th = th || themeOf(null);
+  if (!th.logo){ $('#touchIcon').href='apple-touch-icon.png'; $('#favIcon').href='icon-192.png'; return; }
   const c=document.createElement('canvas'); c.width=c.height=180; const x=c.getContext('2d');
   x.fillStyle=th.farbe; x.fillRect(0,0,180,180);
   for (let i=-180;i<360;i+=36){ x.fillStyle=th.akzent; x.beginPath(); x.moveTo(i,0); x.lineTo(i+18,0); x.lineTo(i-6,24); x.lineTo(i-24,24); x.fill(); }
