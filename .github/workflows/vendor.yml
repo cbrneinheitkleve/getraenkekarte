@@ -1,0 +1,31 @@
+name: Bibliotheken lokal ablegen
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/vendor.yml']
+permissions:
+  contents: write
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Supabase-Bibliothek und Schriften holen
+        run: |
+          mkdir -p vendor fonts /tmp/p && cd /tmp/p
+          npm pack @supabase/supabase-js@2.49.4 @fontsource/barlow-condensed@5.1.0 @fontsource/barlow@5.1.0 @fontsource/ibm-plex-mono@5.1.0
+          for f in *.tgz; do mkdir -p "${f%.tgz}"; tar -xzf "$f" -C "${f%.tgz}"; done
+          cp supabase-supabase-js-*/package/dist/umd/supabase.js "$GITHUB_WORKSPACE/vendor/supabase.js"
+          for spec in "barlow-condensed 600" "barlow-condensed 700" "barlow 400" "barlow 500" "barlow 600" "ibm-plex-mono 500" "ibm-plex-mono 600"; do
+            set -- $spec
+            for sub in latin latin-ext; do cp fontsource-$1-*/package/files/$1-$sub-$2-normal.woff2 "$GITHUB_WORKSPACE/fonts/"; done
+          done
+          ls -la "$GITHUB_WORKSPACE/vendor" "$GITHUB_WORKSPACE/fonts"
+      - name: Ins Repo übernehmen
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add vendor fonts
+          git diff --cached --quiet || git commit -m "Bibliotheken und Schriften lokal abgelegt"
+          git push
