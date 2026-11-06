@@ -437,11 +437,13 @@ async function decryptAll(){
   for (const k of S.karten) if (k.name_enc){ try{ out[k.code] = S.klarCache[k.name_enc] ?? (S.klarCache[k.name_enc] = await decWith(KR.key, k.name_enc)); }catch(e){} }
   S.klar=out;
 }
-const klar = k => k ? (S.klar[k.code] || (!k.name_enc && !elOf(k.name) ? k.name : null)) : null;  // alte Karten: Klarname steht noch in name
-const legacy = () => S.karten.filter(k=>!k.name_enc && !elOf(k.name));
+const okName = k => !!(k && k.einwilligung);   // Klarname mit Einwilligung, steht bewusst unverschlüsselt in name
+const klar = k => k ? (okName(k) ? k.name : (S.klar[k.code] || (!k.name_enc && !elOf(k.name) ? k.name : null))) : null;  // alte Karten: Klarname steht noch in name
+const legacy = () => S.karten.filter(k=>!okName(k) && !k.name_enc && !elOf(k.name));
 const disp = k => { if (!k) return ''; const c=klar(k); return c && c!==k.name ? c+' ('+k.name+')' : k.name; };
 const LOCK = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
-const nameHTML = k => { const c=klar(k); return c && c!==k.name ? `<b>${esc(c)}</b> <span class="klar">${esc(k.name)}</span>` : `<b>${esc(k.name)}</b>${k.name_enc && !c ? ` <span class="lock">${LOCK}</span>`:''}`; };
+const OKCHIP = '<span class="chip" title="Klarname mit Einwilligung" style="color:var(--pos);border-color:var(--pos)">Klarname</span>';
+const nameHTML = k => { if (okName(k)) return `<b>${esc(k.name)}</b> ${OKCHIP}`; const c=klar(k); return c && c!==k.name ? `<b>${esc(c)}</b> <span class="klar">${esc(k.name)}</span>` : `<b>${esc(k.name)}</b>${k.name_enc && !c ? ` <span class="lock">${LOCK}</span>`:''}`; };
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const FARBEN = [['#17231F','Dunkelgrün'],['#9E1B1B','Feuerwehrrot'],['#13294B','Nachtblau'],['#111111','Schwarz'],['#3B4046','Anthrazit'],['#FFFFFF','Weiß']];
 const AKZENTE = [['#F2B705','Gelb'],['#F07D00','Orange'],['#D32F2F','Rot'],['#FFFFFF','Weiß'],['#C9CED2','Silber'],['#2E7D32','Grün']];
@@ -461,7 +463,7 @@ function applyBrand(){
 
 let toastT;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2800); }
-function fail(e, what){ console.warn(e); if (/name_enc|krypto/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-pseudonyme.sql ausführen.'); if (/bezahlt/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-zahlungen.sql ausführen.'); toast((what||'Speichern')+' fehlgeschlagen' + (e && e.message ? ': '+e.message : '')); }
+function fail(e, what){ console.warn(e); if (/einwilligung/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-einwilligung.sql ausführen.'); if (/name_enc|krypto/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-pseudonyme.sql ausführen.'); if (/bezahlt/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-zahlungen.sql ausführen.'); toast((what||'Speichern')+' fehlgeschlagen' + (e && e.message ? ': '+e.message : '')); }
 async function q(p){ const {data, error} = await p; if (error) throw error; return data; }
 
 /* ---------- Berechnungen ---------- */
@@ -757,9 +759,10 @@ async function decideMode(){
 
 /* ---------- Datenschutz: Schlüssel & Umstellung ---------- */
 function renderKryptoPanel(){
-  const n=legacy().length, nEnc=S.karten.filter(k=>k.name_enc).length;
+  const n=legacy().length, nEnc=S.karten.filter(k=>k.name_enc).length, nOk=S.karten.filter(okName).length;
   $('#kryptoPanel').innerHTML = `<h3>Datenschutz – Namen verschlüsseln</h3>
-    <p class="muted" style="margin:0">Auf den Karten und in der Datenbank steht nur ein Element als Deckname. Die echten Namen werden auf dem Handy mit einem gemeinsamen Admin-Passwort verschlüsselt. Supabase sieht nur Zeichensalat.</p>
+    <p class="muted" style="margin:0">Auf den Karten und in der Datenbank steht nur ein Element als Deckname. Die echten Namen werden auf dem Handy mit einem gemeinsamen Admin-Passwort verschlüsselt. Supabase sieht nur Zeichensalat. Ausnahme: Karten, bei denen eine Einwilligung erfasst ist, tragen den Klarnamen.</p>
+    ${nOk ? `<span class="muted">${nOk} ${nOk===1?'Karte':'Karten'} mit Einwilligung (Klarname)</span>` : ''}
     ${!hasKrypto() ? `<div class="notice">Noch nicht eingerichtet.</div><button class="btn primary" data-act="krypto">Einrichten</button>`
       : !KR.key ? `<div class="spread"><span class="lock">${LOCK} Gesperrt – Namen nicht sichtbar</span><button class="btn primary" data-act="krypto">Entsperren</button></div>`
       : `<div class="spread"><span>Entsperrt · ${nEnc} ${nEnc===1?'Name':'Namen'} verschlüsselt</span><button class="btn" data-act="krypto-lock">Auf diesem Gerät sperren</button></div>
@@ -818,6 +821,42 @@ async function migrateLegacy(btn){
   await loadAll();
 }
 
+/* ---------- Einwilligung Klarname ---------- */
+async function swapKasseText(code, from, to){
+  for (const e of S.kasse.filter(e=>e.karte===code && e.text && from && e.text.includes(from))){
+    const text=e.text.split(from).join(to); await q(sb.from('kasse').update({text}).eq('id',e.id)); e.text=text; }
+}
+function okSheet(code, on){
+  const k=S.karten.find(x=>x.code===code); if (!k) return; const kn=klar(k);
+  if (!on && !KR.key){ kryptoSheet(); return; }
+  openSheet(`${sheetHead(on?'Einwilligung erfassen':'Einwilligung widerrufen')}
+    ${on ? `<div class="notice stack" style="gap:6px"><b>${esc(kn)} ist einverstanden, dass der Name offen verwendet wird?</b>
+      <span>Der Name ersetzt dann den Decknamen ${esc(k.name)}: auf der Karte, in der App, im Kassenbuch und unverschlüsselt in der Datenbank. Das heutige Datum wird als Einwilligungsdatum gespeichert. Hebe die Zustimmung (z. B. Nachricht oder Unterschrift) gut auf.</span></div>`
+         : `<div class="notice stack" style="gap:6px"><b>Einwilligung von ${esc(k.name)} widerrufen?</b>
+      <span>Die Karte bekommt sofort ein zufälliges Element als Decknamen. Der Name wird verschlüsselt und auch in den Texten im Kassenbuch ersetzt. Guthaben, Link und QR-Code bleiben gleich.</span></div>`}
+    <div class="row"><button class="btn ${on?'primary':'danger'}" data-act="${on?'ok-on-go':'ok-off-go'}" data-id="${code}">${on?'Ja, Klarname verwenden':'Ja, widerrufen'}</button><button class="btn" data-act="card" data-id="${code}">Abbrechen</button></div>`, {kind:'ok', id:code});
+}
+async function setOk(code, on, btn){
+  const k=S.karten.find(x=>x.code===code); if (!k) return; if (btn) btn.disabled=true;
+  try{
+    if (on){
+      const kn=klar(k); if (!kn) return toast('Name nicht lesbar – bitte zuerst entsperren.');
+      if (S.karten.some(x=>x!==k && x.name===kn)) return toast('Es gibt schon eine Karte mit dem Namen '+kn+'.');
+      const alt=k.name;
+      await q(sb.from('karten').update({name:kn, name_enc:null, einwilligung:new Date().toISOString()}).eq('code',code));
+      await swapKasseText(code, alt, kn); toast('Klarname für '+kn+' aktiviert');
+    } else {
+      if (!KR.key) return kryptoSheet();
+      const el=randomEl(); if (!el) return toast('Keine freien Elemente mehr.');
+      const alt=k.name, name_enc=await enc(alt);
+      await q(sb.from('karten').update({name:el.name, name_enc, einwilligung:null}).eq('code',code));
+      S.klarCache[name_enc]=alt; S.klar[code]=alt;
+      await swapKasseText(code, alt, el.name); toast('Widerrufen – Karte heißt jetzt '+el.name);
+    }
+    await loadAll(); openCard(code);
+  }catch(e){ fail(e,'Speichern'); if (btn) btn.disabled=false; }
+}
+
 /* ---------- Sheets ---------- */
 function openSheet(html, meta){ const pn=$('#sheetPanel'), keep=!$('#sheet').hidden && S.sheet && meta && S.sheet.kind===meta.kind && S.sheet.id===meta.id ? pn.scrollTop : 0; S.sheet=meta||{kind:'form'}; pn.innerHTML=html; $('#sheet').hidden=false; document.body.classList.add('locked'); pn.scrollTop=keep; }
 function closeSheet(){ document.body.classList.remove('locked'); $('#sheet').hidden=true; $('#sheetPanel').innerHTML=''; S.sheet=null; }
@@ -869,14 +908,15 @@ async function entryDetail(id){
 }
 
 function cardForm(){
-  if (!hasKrypto() || !KR.key){ kryptoSheet('new-card'); return; }
   const els = freeEls();
   openSheet(`${sheetHead('Neue Getränkekarte')}
     <form id="cardForm" class="stack" style="gap:14px">
       <div class="seg3" role="group" aria-label="Art der Karte"><button type="button" data-mode="neu" aria-pressed="true">Neu verkauft</button><button type="button" data-mode="alt" aria-pressed="false">Bestehende übernehmen</button><button type="button" data-mode="leer" aria-pressed="false">Leer anlegen</button></div>
-      <div class="field"><label class="label" for="cName">Name der Person</label><input id="cName" maxlength="60" required placeholder="Vor- und Nachname" autocomplete="off"><small class="muted">${LOCK} Wird auf diesem Gerät verschlüsselt. In der Datenbank steht nur das Element.</small></div>
-      <div class="field"><label class="label" for="cEl">Element (Deckname auf der Karte)</label><select id="cEl"><option value="">Zufällig</option>${els.map(e=>`<option value="${e.name}">${e.nr} · ${e.sym} · ${e.name}</option>`).join('')}</select>
+      <div class="field"><label class="label" for="cName">Name der Person</label><input id="cName" maxlength="60" required placeholder="Vor- und Nachname" autocomplete="off"><small class="muted" id="cNameHint">${LOCK} Wird auf diesem Gerät verschlüsselt. In der Datenbank steht nur das Element.</small></div>
+      <label class="check"><input type="checkbox" id="cOk"><span><b>Klarname verwenden – Einwilligung liegt vor.</b> Der Name steht dann offen auf der Karte, in der App und in der Datenbank. Nur ankreuzen, wenn die Person zugestimmt hat (schriftlich oder per Nachricht).</span></label>
+      <div class="field" id="cElRow"><label class="label" for="cEl">Element (Deckname auf der Karte)</label><select id="cEl"><option value="">Zufällig</option>${els.map(e=>`<option value="${e.name}">${e.nr} · ${e.sym} · ${e.name}</option>`).join('')}</select>
         <small class="muted">Nicht nach Initialen wählen (Neumann ≠ Neon), sonst ist der Deckname leicht zu durchschauen.</small></div>
+      ${!hasKrypto()||!KR.key ? `<div class="notice" id="cLockInfo">${LOCK} Für einen Decknamen mit verschlüsseltem Namen musst du die Namen erst ${hasKrypto()?'entsperren':'einrichten'} (Mehr → Datenschutz). Mit Einwilligung geht es auch ohne.</div>` : ''}
       <div class="notice" id="cLeerInfo" hidden>Die Karte wird ohne Guthaben angelegt. Link und QR-Code kannst du sofort verschicken. Restguthaben oder eine Aufladung buchst du später in der Karte über „+ Aufladen“.</div>
       <div class="field" id="cWertRow"><label class="label" for="cWert" id="cWertLbl">Wert (€)</label><input id="cWert" inputmode="decimal" class="num" value="${centsIn(S.config.wert)}"></div>
       <label class="check" id="cPaidRow"><input type="checkbox" id="cPaid" checked><span>Bezahlt – als Einnahme ins Kassenbuch eintragen. Ohne Haken bleibt die Zahlung offen und kann später nachgebucht werden.</span></label>
@@ -884,29 +924,36 @@ function cardForm(){
       <button class="btn primary wide" type="submit" id="cSave">Karte anlegen</button>
     </form>`);
   const f=$('#cardForm'); f.dataset.mode='neu';
+  $('#cOk').onchange = ()=>{ const ok=$('#cOk').checked; $('#cElRow').hidden=ok; if ($('#cLockInfo')) $('#cLockInfo').hidden=ok;
+    $('#cNameHint').innerHTML = ok ? 'Wird als Klarname gespeichert. Das Datum der Einwilligung wird mit gespeichert.' : LOCK+' Wird auf diesem Gerät verschlüsselt. In der Datenbank steht nur das Element.'; };
   f.querySelectorAll('.seg3 button').forEach(b=>b.onclick=()=>{ f.dataset.mode=b.dataset.mode; f.querySelectorAll('.seg3 button').forEach(x=>x.setAttribute('aria-pressed',x===b));
     const alt=b.dataset.mode==='alt', leer=b.dataset.mode==='leer'; $('#cWertLbl').textContent = alt?'Restguthaben (€)':'Wert (€)'; $('#cWertRow').hidden=leer; $('#cPaidRow').hidden=alt||leer; $('#cAltInfo').hidden=!alt; $('#cLeerInfo').hidden=!leer; $('#cSave').textContent = alt?'Karte übernehmen':(leer?'Leere Karte anlegen':'Karte anlegen'); if (alt) $('#cWert').select(); });
   f.onsubmit = async ev=>{
     ev.preventDefault(); const name=$('#cName').value.trim(), wert=toCents($('#cWert').value), alt=f.dataset.mode==='alt', leer=f.dataset.mode==='leer';
-    const el = $('#cEl').value ? elOf($('#cEl').value) : randomEl();
-    if (!el){ toast('Alle 118 Elemente sind vergeben.'); return; }
-    if (S.karten.some(k=>k.name===el.name)){ toast(el.name+' ist schon vergeben.'); return; }
-    if (!KR.key){ kryptoSheet(); return; }
+    const ok=$('#cOk').checked;
+    if (ok && !name){ toast('Bitte einen Namen angeben.'); return; }
+    if (ok && S.karten.some(k=>k.name===name)){ toast('Es gibt schon eine Karte mit dem Namen '+name+'.'); return; }
+    const el = ok ? null : ($('#cEl').value ? elOf($('#cEl').value) : randomEl());
+    if (!ok && !el){ toast('Alle 118 Elemente sind vergeben.'); return; }
+    if (!ok && S.karten.some(k=>k.name===el.name)){ toast(el.name+' ist schon vergeben.'); return; }
+    if (!ok && !KR.key){ toast('Bitte zuerst die Namen entsperren oder „Einwilligung liegt vor“ ankreuzen.'); return; }
+    const show = ok ? name : el.name;
+    const row = async () => ok ? {name, name_enc:null, einwilligung:new Date().toISOString()} : {name:el.name, name_enc:await enc(name)};
     if (leer){
       if (!name){ toast('Bitte einen Namen angeben.'); return; }
       $('#cSave').disabled=true; const code=newCode();
-      try{ await q(sb.from('karten').insert({code, name:el.name, name_enc:await enc(name), wert:S.config.wert})); closeSheet(); toast('Leere Karte angelegt'); await loadAll(); openCard(code); }
+      try{ await q(sb.from('karten').insert({code, ...(await row()), wert:S.config.wert})); closeSheet(); toast('Leere Karte angelegt'); await loadAll(); openCard(code); }
       catch(e){ fail(e); $('#cSave').disabled=false; }
       return;
     }
     if (!name || !(wert>0)){ toast(alt?'Name und Restguthaben angeben.':'Name und Wert angeben.'); return; }
     $('#cSave').disabled=true; const code=newCode();
     try{
-      await q(sb.from('karten').insert({code, name:el.name, name_enc:await enc(name), wert: alt ? Math.max(wert, S.config.wert) : wert}));
+      await q(sb.from('karten').insert({code, ...(await row()), wert: alt ? Math.max(wert, S.config.wert) : wert}));
       const paid = alt || $('#cPaid').checked;
       await q(sb.from('buchungen').insert(paid ? {karte:code, typ:'auf', betrag:wert} : {karte:code, typ:'auf', betrag:wert, bezahlt:false}));
-      if (paid && !alt) await q(sb.from('kasse').insert({typ:'ein', betrag:wert, datum:today(), kategorie:'Getränkekarten-Verkauf', text:'Getränkekarte – '+el.name, karte:code}));
-      closeSheet(); toast((alt?'Karte mit '+eur(wert)+' übernommen':'Karte angelegt')+' – '+el.name); await loadAll(); openCard(code);
+      if (paid && !alt) await q(sb.from('kasse').insert({typ:'ein', betrag:wert, datum:today(), kategorie:'Getränkekarten-Verkauf', text:'Getränkekarte – '+show, karte:code}));
+      closeSheet(); toast((alt?'Karte mit '+eur(wert)+' übernommen':'Karte angelegt')+' – '+show); await loadAll(); openCard(code);
     }catch(e){ fail(e); $('#cSave').disabled=false; }
   };
 }
@@ -937,7 +984,9 @@ function openCard(code){
   const kn = klar(k);
   openSheet(`${sheetHead('Karte')}
     ${kn && kn!==k.name ? `<div class="spread"><span class="label">Gehört</span><b>${esc(kn)}</b></div>` : k.name_enc ? `<div class="spread"><span class="lock">${LOCK} Name verschlüsselt</span><button class="btn" data-act="krypto">Entsperren</button></div>` : ''}
-    ${!k.name_enc && !elOf(k.name) ? `<div class="notice">Diese Karte hat noch einen Klarnamen in der Datenbank. Unter „Mehr → Datenschutz“ auf Element-Decknamen umstellen.</div>` : ''}
+    ${okName(k) ? `<div class="spread"><span>${OKCHIP} Einwilligung vom ${new Date(k.einwilligung).toLocaleDateString('de-DE')}</span><button class="btn" data-act="ok-off" data-id="${code}">Einwilligung widerrufen</button></div>`
+      : kn && kn!==k.name ? `<div class="spread"><span class="muted">Hat die Person zugestimmt, dass ihr Name offen verwendet wird?</span><button class="btn" data-act="ok-on" data-id="${code}">Einwilligung erfassen</button></div>` : ''}
+    ${!okName(k) && !k.name_enc && !elOf(k.name) ? `<div class="notice">Diese Karte hat noch einen Klarnamen in der Datenbank. Unter „Mehr → Datenschutz“ auf Element-Decknamen umstellen.</div>` : ''}
     ${cardHTML(code, k.name, bal, k.aktiv)}
     <div class="panel stack">
       <span class="label">Karte verschicken</span>
@@ -955,7 +1004,7 @@ function openCard(code){
       <button class="btn danger" data-act="del-card" data-id="${code}">Karte löschen</button></div>`, {kind:'karte', id:code});
   paintQRs($('#sheetPanel'));
 }
-const shareText = k => { const kn=klar(k); return `Hallo${kn&&kn!==k.name?' '+kn:''}, hier ist deine digitale Getränkekarte „${k.name}“ (${S.config.einheit}):\n${cardLink(k)}\n\nLink öffnen und über „Teilen“ bzw. ⋮ → „Zum Home-Bildschirm“ aufs Handy legen. Dann einfach den QR-Code an der Getränkeausgabe zeigen.`; };
+const shareText = k => { const kn=klar(k); return `Hallo${kn?' '+kn:''}, hier ist deine digitale Getränkekarte${okName(k)?'':' „'+k.name+'“'} (${S.config.einheit}):\n${cardLink(k)}\n\nLink öffnen und über „Teilen“ bzw. ⋮ → „Zum Home-Bildschirm“ aufs Handy legen. Dann einfach den QR-Code an der Getränkeausgabe zeigen.`; };
 
 /* ---------- Scannen ---------- */
 let stream=null, scanTimer=null, busy=false;
@@ -1082,6 +1131,10 @@ document.addEventListener('click', async ev=>{
     else if (a==='save-img'){ const blob=await cardImage(k), file=new File([blob],'Getraenkekarte-'+k.code+'.png',{type:'image/png'});
       if (navigator.canShare && navigator.canShare({files:[file]})) { try{ await navigator.share({files:[file], text:shareText(k)}); markSent(id); }catch(e){} } else { download(blob, file.name); markSent(id); } }
     else if (a==='sent-off') confirmDeact(id);
+    else if (a==='ok-on') okSheet(id, true);
+    else if (a==='ok-off') okSheet(id, false);
+    else if (a==='ok-on-go') setOk(id, true, t);
+    else if (a==='ok-off-go') setOk(id, false, t);
     else if (a==='deact-go'){ t.disabled=true; await q(sb.from('karten').update({aktiv:false}).eq('code',id)); closeSheet(); toast('Karte von '+disp(k)+' gesperrt'); loadAll(); }
     else if (a==='topup'){ $('#topupRow').innerHTML = `<div class="panel stack" style="width:100%">
         <div class="field"><label class="label" for="tBetrag">Betrag (€)</label><input id="tBetrag" inputmode="decimal" class="num inp" value="${centsIn(S.config.wert)}"></div>

@@ -76,6 +76,7 @@ footer{padding-block:8px 24px;text-align:center;font-size:12px;color:var(--muted
     <li>Guthaben, Aufladungen und Abbuchungen jeweils mit Zeitpunkt und Betrag, Zahlungsstatus von Aufladungen</li>
     <li>Status der Karte (aktiv oder gesperrt) und ob bzw. wann die Karte verschickt wurde</li>
     <li>Der echte Name wird <b>nur verschlüsselt</b> gespeichert (AES-256-GCM). Der Schlüssel entsteht aus einem Passwort, das nur die Admins kennen, und wird nicht an den Datenbank-Anbieter übertragen. Ohne dieses Passwort ist der Name für niemanden lesbar, auch nicht für den Anbieter.</li>
+    <li><b>Ausnahme mit Einwilligung:</b> Wer ausdrücklich zustimmt, bekommt statt des Decknamens seinen Klarnamen auf die Karte. Der Name wird dann unverschlüsselt gespeichert und ist für Admins sowie auf der eigenen Karte sichtbar. Gespeichert wird auch das Datum der Einwilligung.</li>
   </ul>
   <h3>Admins</h3>
   <ul>
@@ -100,7 +101,10 @@ footer{padding-block:8px 24px;text-align:center;font-size:12px;color:var(--muted
   </ul>
 
   <h2>5. Rechtsgrundlage</h2>
-  <p><span class="ph">Vom Verantwortlichen zu prüfen.</span> In Betracht kommen insbesondere Art. 6 Abs. 1 lit. b DSGVO (Durchführung der Vereinbarung über die Getränkekarte mit Guthaben) und Art. 6 Abs. 1 lit. c DSGVO (Aufbewahrung von Kassenbelegen). Für die technisch notwendigen Daten beim Aufruf kommt Art. 6 Abs. 1 lit. f DSGVO bzw. lit. e in Verbindung mit dem DSG NRW in Betracht.</p>
+  <p><span class="ph">Vom Verantwortlichen zu prüfen.</span> Für Klarnamen auf der Karte: Einwilligung nach Art. 6 Abs. 1 lit. a DSGVO. Im Übrigen kommen insbesondere Art. 6 Abs. 1 lit. b DSGVO (Durchführung der Vereinbarung über die Getränkekarte mit Guthaben) und Art. 6 Abs. 1 lit. c DSGVO (Aufbewahrung von Kassenbelegen). Für die technisch notwendigen Daten beim Aufruf kommt Art. 6 Abs. 1 lit. f DSGVO bzw. lit. e in Verbindung mit dem DSG NRW in Betracht.</p>
+
+  <h3>Einwilligung und Widerruf</h3>
+  <p>Die Einwilligung in die Verwendung des Klarnamens ist freiwillig. Wer nicht zustimmt, hat keinen Nachteil und erhält eine Karte mit Decknamen. Die Einwilligung kann jederzeit ohne Angabe von Gründen widerrufen werden, z. B. formlos bei der Getränkekasse. Die Karte wird dann sofort auf einen Decknamen umgestellt und der Name verschlüsselt. Guthaben und Link bleiben erhalten. Die Rechtmäßigkeit der bis zum Widerruf erfolgten Verarbeitung bleibt unberührt.</p>
 
   <h2>6. Eingesetzte Dienstleister</h2>
   <h3>Supabase (Datenbank, Anmeldung, Belegfotos)</h3>
