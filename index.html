@@ -593,17 +593,17 @@ function renderHolder(){
         ${plain?'<span class="muted">Dein Name wird bei der nächsten Aktualisierung durch einen Decknamen ersetzt.</span>':''}${choiceHTML(d,'wechsel-klar')}</div></details>`
     : `<details class="panel"><summary>Wie soll deine Karte heißen?</summary><div style="margin-top:12px">${choiceHTML(d,'erst')}</div></details>`;
   $('#holderInfo').innerHTML = `
+    <h3>Verlauf</h3>${histHTML(d.verlauf||[])}
     <p class="muted" style="margin:0;text-align:center">Zeig den QR-Code an der Getränkeausgabe. Pro Getränk werden ${eur(d.preis)} abgebucht.</p>
     ${!d.aktiv?`<div class="notice"><b>Diese Karte ist gesperrt.</b> Bitte wende dich an die Getränkekasse.</div>`:''}
     ${low?`<div class="notice">Dein Guthaben reicht für kein Getränk mehr. Lade die Karte an der Kasse auf.</div>`:''}
     <button class="btn" data-act="holder-refresh">Guthaben aktualisieren</button>
-    ${namePanel}
     <details class="panel"><summary>Karte aufs Handy legen</summary>
       <div class="stack" style="margin-top:10px;gap:6px">
         <span><b>iPhone (Safari):</b> unten auf das Teilen-Symbol tippen, dann „Zum Home-Bildschirm“.</span>
         <span><b>Android (Chrome):</b> oben rechts auf ⋮ tippen, dann „Zum Startbildschirm hinzufügen“.</span>
         <span class="muted">Danach liegt die Karte als Symbol auf dem Handy und öffnet sich mit einem Tipp.</span></div></details>
-    <h3>Verlauf</h3>${histHTML(d.verlauf||[])}
+    ${namePanel}
     ${tail}`;
   bindChoice();
 }
