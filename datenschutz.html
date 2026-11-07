@@ -12,20 +12,21 @@
 <link rel="stylesheet" href="fonts/fonts.css">
 <style>
 :root{
-  --bg:#EEF1EE; --surface:#FFFFFF; --ink:#16201C; --muted:#5B6862; --line:#D3DAD5;
+  --bg:#F8FAF8; --surface:#FFFFFF; --ink:#16201C; --muted:#5B6862; --line:#D3DAD5;
   --primary:#1F5C4A; --amber:#F2B705; --ph-bg:#FFF1B8; --ph-ink:#5A4300;
   --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){:root{
-  --bg:#0E1412; --surface:#172019; --ink:#E6ECE8; --muted:#97A59E; --line:#2A3631;
+  --bg:#212C28; --surface:#2B3833; --ink:#E6ECE8; --muted:#97A59E; --line:#3A4843;
   --primary:#5DBE98; --ph-bg:#3A3110; --ph-ink:#F5DE8A; color-scheme:dark }}
 *{box-sizing:border-box}
 html{padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55}
 .wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-header{background:var(--surface);border-bottom:1px solid var(--line)}
+header{background:#FFFFFF;border-bottom:1px solid #D3DAD5}
+@media (prefers-color-scheme: dark){header{background:#172019;border-bottom-color:#2A3631}}
 header .wrap{display:flex;align-items:center;gap:12px;padding-block:10px}
 header img{width:36px;height:36px;flex:none}
 header b{font-family:var(--f-display);font-size:21px;letter-spacing:.02em}

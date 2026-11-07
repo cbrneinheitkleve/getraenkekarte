@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#17231F">
+<meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Getränkekarte">
@@ -20,30 +20,32 @@
 <script src="vendor/jsQR.js"></script>
 <style>
 :root{
-  --bg:#EEF1EE; --surface:#FFFFFF; --sunk:#E3E8E4; --ink:#16201C; --muted:#5B6862; --line:#D3DAD5;
+  --bg:#F8FAF8; --surface:#FFFFFF; --sunk:#EFF3F0; --ink:#16201C; --muted:#5B6862; --line:#DDE3DF;
+  --head:#FFFFFF; --head-line:#D3DAD5;
   --primary:#1F5C4A; --on-primary:#FFFFFF; --amber:#F2B705; --on-amber:#1A1600;
   --pos:#1D7A42; --neg:#B3261E; --warn-bg:#FFF4CC;
-  --card-bg:#17231F; --card-ink:#EEF3F0; --card-muted:#A9B8B1;
+  --card-bg:#000000; --card-ink:#EEF3F0; --card-muted:#A9B8B1;
   --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
   --r:12px; color-scheme:light;
 }
 @media (prefers-color-scheme: dark){:root{
-  --bg:#0E1412; --surface:#172019; --sunk:#111915; --ink:#E6ECE8; --muted:#97A59E; --line:#2A3631;
-  --primary:#5DBE98; --on-primary:#06231A; --pos:#5CCB85; --neg:#FF8A80; --warn-bg:#3A3110;
-  --card-bg:#0A100D; color-scheme:dark }}
+  --bg:#212C28; --surface:#2B3833; --sunk:#26322E; --ink:#E9EFEB; --muted:#A3B0AA; --line:#3A4843;
+  --head:#172019; --head-line:#2A3631;
+  --primary:#5DBE98; --on-primary:#06231A; --pos:#5CCB85; --neg:#FF8A80; --warn-bg:#4A3E14;
+  --card-bg:#000000; color-scheme:dark }}
 *{box-sizing:border-box}
 html{padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45;padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 body.noTabs{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
-body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--head)}
 button,input,select,textarea{font:inherit;color:inherit}
 [hidden]{display:none!important}
 img{max-width:100%}
 :focus-visible{outline:3px solid var(--amber);outline-offset:2px}
 .wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--head);border-bottom:1px solid var(--head-line)}
 header.top .wrap{display:flex;align-items:center;gap:12px;padding-block:10px}
 .badge{width:36px;height:36px;border-radius:8px;background:var(--amber);color:var(--on-amber);display:grid;place-items:center;font-family:var(--f-display);font-weight:700;font-size:13px;letter-spacing:.04em;flex:none}
 .brand{display:flex;flex-direction:column;min-width:0}
@@ -461,9 +463,9 @@ const LOCK = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke
 const OKCHIP = '<span class="chip" title="Klarname mit Einwilligung" style="color:var(--pos);border-color:var(--pos)">Klarname</span>';
 const nameHTML = k => { if (okName(k)) return `<b>${esc(k.name)}</b> ${OKCHIP}`; const c=klar(k); return c && c!==k.name ? `<b>${esc(c)}</b> <span class="klar">${esc(k.name)}</span>` : `<b>${esc(k.name)}</b>${k.name_enc && !c ? ` <span class="lock">${LOCK}</span>`:''}`; };
 const HEX = /^#[0-9a-fA-F]{6}$/;
-const FARBEN = [['#17231F','Dunkelgrün'],['#9E1B1B','Feuerwehrrot'],['#13294B','Nachtblau'],['#111111','Schwarz'],['#3B4046','Anthrazit'],['#FFFFFF','Weiß']];
+const FARBEN = [['#000000','Schwarz'],['#17231F','Dunkelgrün'],['#9E1B1B','Feuerwehrrot'],['#13294B','Nachtblau'],['#3B4046','Anthrazit'],['#FFFFFF','Weiß']];
 const AKZENTE = [['#F2B705','Gelb'],['#F07D00','Orange'],['#D32F2F','Rot'],['#FFFFFF','Weiß'],['#C9CED2','Silber'],['#2E7D32','Grün']];
-function themeOf(src){ src=src||{}; return { farbe: HEX.test(src.farbe||'')?src.farbe:'#17231F', akzent: HEX.test(src.akzent||'')?src.akzent:'#F2B705', logo: (typeof src.logo==='string' && src.logo.startsWith('data:image/')) ? src.logo : null }; }
+function themeOf(src){ src=src||{}; return { farbe: HEX.test(src.farbe||'') && src.farbe.toUpperCase()!=='#17231F' ? src.farbe : '#000000', akzent: HEX.test(src.akzent||'')?src.akzent:'#F2B705', logo: (typeof src.logo==='string' && src.logo.startsWith('data:image/')) ? src.logo : null }; }
 function isLight(hex){ const h=hex.slice(1), r=parseInt(h.slice(0,2),16), g=parseInt(h.slice(2,4),16), b=parseInt(h.slice(4,6),16); return (0.299*r+0.587*g+0.114*b) > 160; }
 function cardStyle(th){ const L=isLight(th.farbe); return `--card-bg:${th.farbe};--amber:${th.akzent};--card-ink:${L?'#16201C':'#EEF3F0'};--card-muted:${L?'#56625C':'#A9B8B1'};--kind:${L&&isLight(th.akzent)?'#16201C':th.akzent}`; }
 function curTheme(){ return themeOf(S.mode==='holder' ? S.holderData : S.config); }
@@ -761,7 +763,7 @@ $('#rVon').addEventListener('change', ()=>{ S.rRange=[$('#rVon').value, S.rRange
 $('#rBis').addEventListener('change', ()=>{ S.rRange=[S.rRange[0], $('#rBis').value]; S.rPreset=null; renderBericht(); });
 
 /* ---------- Aussehen ---------- */
-const look = {farbe:'#17231F', akzent:'#F2B705', logo:null, dirty:false};
+const look = {farbe:'#000000', akzent:'#F2B705', logo:null, dirty:false};
 function swatchHTML(list, cur, kind){
   const isCustom = !list.some(([h])=>h.toLowerCase()===cur.toLowerCase());
   return list.map(([h,n])=>`<button type="button" class="sw" style="background:${h}" title="${n}" aria-label="${n}" aria-pressed="${h.toLowerCase()===cur.toLowerCase()}" data-look="${kind}" data-hex="${h}"></button>`).join('')
