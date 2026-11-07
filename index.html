@@ -270,7 +270,9 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
   <section class="view" id="v-karten" hidden>
     <div class="spread"><h2>Getränkekarten</h2><button class="btn primary" data-act="new-card">+ Neue Karte</button></div>
     <div id="kartenSummary"></div>
-    <div class="field"><label class="label" for="cardSearch">Suchen</label><input id="cardSearch" type="search" placeholder="Name oder Code"></div>
+    <div id="todoBox"></div>
+    <button class="btn wide" data-act="el-overview">Decknamen-Übersicht – wer hat welches Element?</button>
+    <div class="field"><label class="label" for="cardSearch">Suchen</label><input id="cardSearch" type="search" placeholder="Name, Element oder Code"></div>
     <div id="kartenList"></div>
     <h3>Letzte Abbuchungen</h3>
     <div id="buchList"></div>
@@ -646,8 +648,12 @@ function renderKarten(){
     <div><span class="label">Aufgeladen gesamt</span><span class="mid">${eur(sum('auf'))}</span></div>
     <div><span class="label">Abgebucht gesamt</span><span class="mid">${eur(sum('ab'))}</span></div></div>`;
   const op = openPay();
+  const todo = S.karten.filter(k=>k.freigegeben===false && k.wahl==='deck'), wait = S.karten.filter(k=>k.freigegeben===false && !k.wahl);
+  $('#todoBox').innerHTML = todo.length ? `<button class="notice" data-act="todo-release" style="border:0;text-align:left;cursor:pointer;width:100%"><b>${todo.length} ${todo.length===1?'Karte wartet':'Karten warten'} auf Freischaltung</b> – Deckname gewünscht. ${S.onlyTodo?'Tippen, um alle Karten zu zeigen.':'Tippen zum Anzeigen.'}</button>`
+    : wait.length ? `<div class="muted" style="font-size:14px">${wait.length} ${wait.length===1?'Karte wartet':'Karten warten'} noch auf die Auswahl der Person.</div>` : '';
+  if (!todo.length) S.onlyTodo=false;
   const sortName = k => klar(k) || k.name;
-  const list = S.karten.filter(k=>(!S.onlyOpen || op[k.code]) && (!qs || k.name.toLowerCase().includes(qs) || k.code.toLowerCase().includes(qs) || (klar(k)||'').toLowerCase().includes(qs)))
+  const list = S.karten.filter(k=>(!S.onlyTodo || (k.freigegeben===false && k.wahl==='deck')) && (!S.onlyOpen || op[k.code]) && (!qs || k.name.toLowerCase().includes(qs) || k.code.toLowerCase().includes(qs) || (klar(k)||'').toLowerCase().includes(qs)))
     .sort((a,b)=>(!a.aktiv)-(!b.aktiv) || sortName(a).localeCompare(sortName(b),'de'));
   const nLeg = legacy().filter(k=>!k.wahl).length, locked = hasKrypto() && !KR.key && (S.karten.some(k=>k.name_enc) || wahlOffen());
   const filt = (locked ? `<div class="spread notice"><span>${LOCK} Namen sind verschlüsselt. Zum Anzeigen entsperren.</span><button class="btn" data-act="krypto">Entsperren</button></div>`
@@ -1068,6 +1074,24 @@ async function markSent(code){
   try{ const ts=new Date().toISOString(); await q(sb.from('karten').update({verschickt:ts}).eq('code',code)); k.verschickt=ts; renderKarten(); if (S.sheet && S.sheet.kind==='karte' && S.sheet.id===code) openCard(code); }
   catch(e){ console.warn(e); if (/verschickt/.test(e.message||'')) toast('Haken konnte nicht gespeichert werden: bitte update-verschickt.sql ausführen.'); }
 }
+function elOverview(){
+  const locked = hasKrypto() && !KR.key && S.karten.some(k=>k.name_enc);
+  const byName = Object.fromEntries(S.karten.map(k=>[k.name,k]));
+  const row = e => { const k=byName[e.name];
+    const who = !k ? '<span class="muted">frei</span>' : (klar(k)&&klar(k)!==k.name ? esc(klar(k)) : k.name_enc ? `<span class="muted">${LOCK} gesperrt</span>` : '<span class="muted">–</span>');
+    const st = !k ? '' : k.freigegeben===false ? (k.wahl==='deck'?' <span class="chip" style="color:var(--on-amber);background:var(--amber);border-color:var(--amber)">freischalten</span>':' <span class="chip">wartet</span>') : !k.aktiv ? ' <span class="chip" style="color:var(--neg);border-color:var(--neg)">gesperrt</span>' : '';
+    return `<tr ${k?`data-act="card" data-id="${k.code}" style="cursor:pointer"`:''}><td class="num">${e.nr}</td><td><b>${e.sym}</b></td><td>${e.name}${e.name==='Radon'||e.name==='Uran'?' <span class="muted">(gezielt)</span>':''}</td><td>${who}${st}</td></tr>`; };
+  const emp = ELEMENTE.filter(e=>EMPFOHLEN.includes(e.name)), weitere = ELEMENTE.filter(e=>!EMPFOHLEN.includes(e.name) && byName[e.name]);
+  const klarK = S.karten.filter(okName);
+  const used = emp.filter(e=>byName[e.name]).length;
+  openSheet(`${sheetHead('Decknamen-Übersicht')}
+    ${locked?`<div class="notice">${LOCK} Die echten Namen sind gesperrt. <button class="btn" data-act="krypto">Entsperren</button></div>`:''}
+    <span class="muted">${used} von ${emp.length} empfohlenen Elementen vergeben. Tippe auf eine Zeile, um die Karte zu öffnen.</span>
+    <div class="tscroll"><table class="rtable" style="min-width:0"><thead><tr><th>Nr.</th><th>Symbol</th><th>Element</th><th>Vergeben an</th></tr></thead><tbody>${emp.map(row).join('')}</tbody></table></div>
+    ${weitere.length?`<h3>Weitere vergebene Elemente</h3><div class="tscroll"><table class="rtable" style="min-width:0"><tbody>${weitere.map(row).join('')}</tbody></table></div>`:''}
+    ${klarK.length?`<h3>Karten mit Klarname (Einwilligung)</h3><div class="list">${klarK.map(k=>`<button class="item" data-act="card" data-id="${k.code}"><span class="date">${k.code}</span><span class="t"><b>${esc(k.name)}</b></span><span>${OKCHIP}</span></button>`).join('')}</div>`:''}`, {kind:'elov'});
+}
+
 function confirmDeact(code){
   const k=S.karten.find(x=>x.code===code); if (!k) return;
   openSheet(`${sheetHead('Karte sperren')}
@@ -1230,6 +1254,8 @@ document.addEventListener('click', async ev=>{
     else if (a==='save-img'){ const blob=await cardImage(k), file=new File([blob],'Getraenkekarte-'+k.code+'.png',{type:'image/png'});
       if (navigator.canShare && navigator.canShare({files:[file]})) { try{ await navigator.share({files:[file], text:shareText(k)}); markSent(id); }catch(e){} } else { download(blob, file.name); markSent(id); } }
     else if (a==='sent-off') confirmDeact(id);
+    else if (a==='el-overview') elOverview();
+    else if (a==='todo-release'){ S.onlyTodo=!S.onlyTodo; renderKarten(); }
     else if (a==='ok-on') okSheet(id, true);
     else if (a==='ok-off') okSheet(id, false);
     else if (a==='ok-on-go') setOk(id, true, t);
