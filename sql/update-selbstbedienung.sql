@@ -57,19 +57,7 @@ end $$;
 revoke execute on function public.selbst_abbuchen(text, text, int, boolean) from public;
 grant execute on function public.selbst_abbuchen(text, text, int, boolean) to anon, authenticated;
 
--- Eigene Selbstbedienungs-Abbuchung innerhalb von 2 Minuten zurücknehmen
-create or replace function public.selbst_storno(p_code text, p_token text, p_id uuid) returns json
-language plpgsql security definer set search_path = public as $$
-declare v_code text; v_n int;
-begin
-  select code into v_code from public.karten where code = upper(p_code) and token = p_token;
-  if v_code is null then return json_build_object('ok', false, 'fehler', 'nicht_gefunden'); end if;
-  delete from public.buchungen where id = p_id and karte = v_code and von = 'Selbstbedienung'
-    and created_at > now() - interval '2 minutes';
-  get diagnostics v_n = row_count;
-  return json_build_object('ok', v_n = 1, 'fehler', case when v_n = 1 then null else 'zu_spaet' end);
-end $$;
-revoke execute on function public.selbst_storno(text, text, uuid) from public;
-grant execute on function public.selbst_storno(text, text, uuid) to anon, authenticated;
+-- Kein Selbst-Storno: Fehlbuchungen storniert nur ein Admin (in der App)
+drop function if exists public.selbst_storno(text, text, uuid);
 
 notify pgrst, 'reload schema';

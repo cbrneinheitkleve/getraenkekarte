@@ -299,7 +299,7 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
     <button class="btn wide" data-act="el-overview">Decknamen-Übersicht – wer hat welches Element?</button>
     <div class="field"><label class="label" for="cardSearch">Suchen</label><input id="cardSearch" type="search" placeholder="Name, Element oder Code"></div>
     <div id="kartenList"></div>
-    <h3>Letzte Abbuchungen</h3>
+    <div class="spread"><h3>Letzte Abbuchungen</h3><span class="muted" style="font-size:13px">Antippen zum Stornieren</span></div>
     <div id="buchList"></div>
   </section>
 
@@ -544,8 +544,8 @@ function cardHTML(code, name, bal, aktiv=true, einheit, th){
     <div><div class="sub" style="text-align:right">${aktiv?'Guthaben':'Deaktiviert'}</div><div class="bal">${bal==null?'–':eur(bal)}</div></div></div></div>`;
 }
 function paintQRs(root){ root.querySelectorAll('canvas[data-qr]').forEach(c=>drawQR(c, qrText(c.dataset.qr), 520)); }
-function histHTML(list){
-  return list.length ? `<div class="list">${list.map(b=>`<div class="item"><span class="date">${fmtTs(b.created_at).replace(', ','<br>')}</span><span class="t"><b>${b.typ==='auf'?'Aufgeladen':'Getränk'+(b.anzahl>1?' ×'+b.anzahl:'')}</b>${b.selbst||b.von==='Selbstbedienung'?' <span class="chip">selbst</span>':''}</span><span class="amt ${b.typ==='auf'?'pos':'neg'}">${b.typ==='auf'?'+':'−'}${eur(b.betrag)}</span></div>`).join('')}</div>` : '<div class="list"><div class="empty">Noch keine Buchungen.</div></div>';
+function histHTML(list, adm){
+  return list.length ? `<div class="list">${list.map(b=>`<${adm&&b.typ==='ab'&&b.id?`button class="item" data-act="storno" data-id="${b.id}" title="Tippen zum Stornieren"`:'div class="item"'}><span class="date">${fmtTs(b.created_at).replace(', ','<br>')}</span><span class="t"><b>${b.typ==='auf'?'Aufgeladen':'Getränk'+(b.anzahl>1?' ×'+b.anzahl:'')}</b>${b.selbst||b.von==='Selbstbedienung'?' <span class="chip">selbst</span>':''}</span><span class="amt ${b.typ==='auf'?'pos':'neg'}">${b.typ==='auf'?'+':'−'}${eur(b.betrag)}</span></${adm&&b.typ==='ab'&&b.id?'button':'div'}>`).join('')}</div>` : '<div class="list"><div class="empty">Noch keine Buchungen.</div></div>';
 }
 function setIcon(th){
   th = th || themeOf(null);
@@ -708,7 +708,7 @@ function renderKarten(){
       <span class="num" style="font-weight:600">${eur(b)}</span>${sentBtn(k)}<span class="meter"><i class="${b<S.config.preis?'low':''}" style="width:${pct}%"></i></span></div>`;}).join('')}</div>`);
   const names = Object.fromEntries(S.karten.map(k=>[k.code,disp(k)]));
   const recent = S.buch.filter(b=>b.typ==='ab').sort((a,b)=>b.created_at.localeCompare(a.created_at)).slice(0,25);
-  $('#buchList').innerHTML = recent.length ? `<div class="list">${recent.map(b=>`<div class="item"><span class="date">${fmtTs(b.created_at).replace(', ','<br>')}</span><span class="t"><b>${esc(names[b.karte]||b.karte)}</b><small class="num">${b.von==='Selbstbedienung'?'<span class="chip">Selbstbedienung</span> ':''}${b.karte}${b.anzahl>1?' · '+b.anzahl+' Getränke':''}</small></span><span class="amt neg">−${eur(b.betrag)}</span></div>`).join('')}</div>`
+  $('#buchList').innerHTML = recent.length ? `<div class="list">${recent.map(b=>`<button class="item" data-act="storno" data-id="${b.id}" title="Tippen zum Stornieren"><span class="date">${fmtTs(b.created_at).replace(', ','<br>')}</span><span class="t"><b>${esc(names[b.karte]||b.karte)}</b><small class="num">${b.von==='Selbstbedienung'?'<span class="chip">Selbstbedienung</span> ':''}${b.karte}${b.anzahl>1?' · '+b.anzahl+' Getränke':''}</small></span><span class="amt neg">−${eur(b.betrag)}</span></button>`).join('')}</div>`
     : `<div class="list"><div class="empty">Noch keine Abbuchungen.</div></div>`;
 }
 
@@ -1010,6 +1010,17 @@ async function setOk(code, on, btn){
   }catch(e){ fail(e,'Speichern'); if (btn) btn.disabled=false; }
 }
 
+/* ---------- Storno (nur Admins) ---------- */
+function stornoSheet(id){
+  const b=S.buch.find(x=>x.id===id); if (!b) return; const k=S.karten.find(x=>x.code===b.karte);
+  const back = S.sheet && S.sheet.kind==='karte' ? S.sheet.id : null;
+  openSheet(`${sheetHead('Abbuchung stornieren')}
+    <div class="notice stack" style="gap:6px"><b>${b.anzahl>1?b.anzahl+' Getränke':'Getränk'} über ${eur(b.betrag)} stornieren?</b>
+      <span>Karte: ${k?nameHTML(k):esc(b.karte)} · ${fmtTs(b.created_at)}${b.von==='Selbstbedienung'?' · Selbstbedienung':''}</span>
+      <span>Der Betrag wird der Karte wieder gutgeschrieben. Die Abbuchung wird gelöscht.</span></div>
+    <div class="row"><button class="btn danger" data-act="storno-go" data-id="${id}" data-back="${back||''}">Ja, stornieren</button><button class="btn" data-act="${back?'card':'close'}" data-id="${back||''}">Abbrechen</button></div>`, {kind:'storno', id});
+}
+
 /* ---------- Selbstbedienung ---------- */
 const OKSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 const zapfURL = () => BASE + '?zapf=1';
@@ -1029,11 +1040,11 @@ function renderZapf(){
   const again = d.selbstbedienung && d.aktiv && d.freigegeben!==false && d.guthaben>=d.preis
     ? `<button class="btn primary wide go" data-act="zapf-again" ${z.busy?'disabled':''}>${z.busy?'Wird abgebucht …':'Noch ein Getränk (−'+eur(d.preis)+')'}</button>` : '';
   if (z.done){
-    const r=z.done, canUndo = !r.undone && Date.now()-r.ts < 115000;
-    box.innerHTML = `<div class="done" role="status"><div class="ok">${OKSVG}</div><b style="font-size:20px">${r.undone?'Zurückgenommen':'Abgebucht – Prost!'}</b>
-      <span class="big ${r.undone?'':'neg'}">${r.undone?'±0,00 €':'−'+eur(r.betrag)}</span><span class="muted">${esc(d.name)} · Restguthaben ${eur(d.guthaben)}</span></div>
+    const r=z.done;
+    box.innerHTML = `<div class="done" role="status"><div class="ok">${OKSVG}</div><b style="font-size:20px">Abgebucht – Prost!</b>
+      <span class="big neg">−${eur(r.betrag)}</span><span class="muted">${esc(d.name)} · Restguthaben ${eur(d.guthaben)}</span></div>
       ${z.err?`<div class="notice">${esc(z.err)}</div>`:''}
-      ${canUndo?`<button class="btn" data-act="zapf-undo">Versehen? Rückgängig machen</button>`:''}
+      <span class="muted" style="text-align:center;font-size:14px">Versehentlich abgebucht? Sag an der Getränkekasse Bescheid, dort wird es storniert.</span>
       ${again}${tail}`; return;
   }
   const msg = z.err ? esc(z.err)
@@ -1057,18 +1068,9 @@ async function zapfGo(bewusst){
     } else {
       z.done = {...r, ts:Date.now()}; if (navigator.vibrate) try{navigator.vibrate(60)}catch(e){}
       S.holderData.guthaben = r.guthaben;
-      setTimeout(()=>{ if (S.mode==='zapf') renderZapf(); }, 116000);
     }
   }catch(e){ z.err = /selbst_abbuchen|function/i.test(e.message||'') ? 'Die Selbstbedienung ist noch nicht eingerichtet.' : 'Keine Verbindung. Bitte erneut versuchen.'; }
   finally{ z.busy=false; try{ history.replaceState(null,'',BASE); }catch(e){} renderZapf(); }
-}
-async function zapfUndo(){
-  const z=S.zapfState, r=z.done; if (!r || r.undone) return;
-  try{ const x = await q(sb.rpc('selbst_storno',{p_code:S.holder.k, p_token:S.holder.t, p_id:r.id}));
-    if (x.ok){ r.undone=true; r.guthaben += r.betrag; S.holderData.guthaben=r.guthaben; toast('Abbuchung zurückgenommen'); }
-    else toast('Zurücknehmen geht nur in den ersten 2 Minuten. Bitte an der Kasse melden.');
-  }catch(e){ toast('Keine Verbindung.'); }
-  renderZapf();
 }
 function renderPoster(){
   const th=themeOf(S.config);
@@ -1253,7 +1255,7 @@ function openCard(code){
     ${openPay()[code] ? `<div class="notice stack" style="gap:8px"><b>Noch nicht bezahlt: ${eur(openPay()[code])}</b><span>Sobald das Geld da ist, hier nachbuchen. Es wird dann als Einnahme ins Kassenbuch eingetragen.</span><button class="btn primary" data-act="pay-open" data-id="${code}">Zahlung nachbuchen</button></div>` : ''}
     ${k.aktiv && !hist.length ? `<div class="notice">Diese Karte hat noch kein Guthaben. Über „+ Aufladen“ kannst du ein Restguthaben von einer alten Karte übernehmen oder neu aufladen.</div>` : ''}
     <div class="row" id="topupRow">${k.aktiv?`<button class="btn amber" data-act="topup" data-id="${code}">+ Aufladen</button><button class="btn danger" data-act="deact" data-id="${code}">Inaktivieren</button>`:`<button class="btn" data-act="react" data-id="${code}">Wieder aktivieren</button>`}</div>
-    <h3>Verlauf</h3>${histHTML(hist)}
+    <h3>Verlauf</h3>${hist.some(b=>b.typ==='ab')?'<span class="muted" style="font-size:14px">Falsche Abbuchung? Antippen zum Stornieren.</span>':''}${histHTML(hist, true)}
     <div class="panel stack" style="margin-top:8px"><h3>Karte löschen</h3>
       <span class="muted">Die Karte und ihr Verlauf werden endgültig entfernt, der Link funktioniert dann nicht mehr. Einnahmen im Kassenbuch bleiben erhalten.${bal>0?` <b>Achtung: Auf der Karte sind noch ${eur(bal)} Guthaben.</b>`:''}${openPay()[code]?` <b>Achtung: ${eur(openPay()[code])} sind noch nicht bezahlt.</b>`:''}</span>
       ${(()=>{ const ks=S.kasse.filter(e=>e.karte===code), sum=ks.reduce((a,e)=>a+(e.typ==='ein'?e.betrag:-e.betrag),0);
@@ -1389,10 +1391,11 @@ document.addEventListener('click', async ev=>{
     else if (a==='save-img'){ const blob=await cardImage(k), file=new File([blob],'Getraenkekarte-'+k.code+'.png',{type:'image/png'});
       if (navigator.canShare && navigator.canShare({files:[file]})) { try{ await navigator.share({files:[file], text:shareText(k)}); markSent(id); }catch(e){} } else { download(blob, file.name); markSent(id); } }
     else if (a==='sent-off') confirmDeact(id);
+    else if (a==='storno') stornoSheet(id);
+    else if (a==='storno-go'){ t.disabled=true; const back=t.dataset.back; await q(sb.from('buchungen').delete().eq('id',id)); toast('Abbuchung storniert – Betrag gutgeschrieben'); await loadAll(); if (back) openCard(back); else closeSheet(); }
     else if (a==='to-admin'){ S.zapf=false; S.zapfState=null; S.wantCard=false; try{ history.replaceState(null,'',BASE); }catch(e){} decideMode(); }
     else if (a==='zapf-open'){ S.zapfState={}; S.mode='zapf'; S.holderLoaded=true; render(); scrollTo(0,0); zapfGo(true); }
     else if (a==='zapf-card'){ S.zapf=false; S.zapfState=null; try{ history.replaceState(null,'',BASE); }catch(e){} S.mode='holder'; render(); loadHolder(); }
-    else if (a==='zapf-undo') zapfUndo();
     else if (a==='zapf-again'){ S.zapfState={...S.zapfState, err:null}; await zapfGo(true); }
     else if (a==='poster-print'){ document.body.classList.add('printPoster'); window.print(); setTimeout(()=>document.body.classList.remove('printPoster'),1000); }
     else if (a==='poster-png') posterPNG();
