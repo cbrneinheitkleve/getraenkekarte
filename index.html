@@ -249,7 +249,7 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
 <body class="noTabs">
 <header class="top"><div class="wrap">
   <div class="badge" aria-hidden="true">CBRN</div>
-  <div class="brand"><b>Getränkekasse</b><span id="unitName">CBRN-Einheit</span></div>
+  <div class="brand"><b id="brandName">Getränkekasse</b><span id="unitName">CBRN-Einheit</span></div>
   <div class="role" id="roleLbl"></div>
   <button class="btn myCard" id="myCardBtn" data-act="my-card" hidden>Meine Karte</button>
 </div></header>
@@ -588,6 +588,9 @@ function render(){
   $('#tabs').hidden = !admin; document.body.classList.toggle('noTabs', !admin);
   $('#roleLbl').textContent = admin ? 'Admin' : '';
   $('#myCardBtn').hidden = !(admin && S.holder);
+  const karteSicht = S.mode==='holder' || S.mode==='zapf' || (S.mode==='loading' && /[?&]k=/.test(location.search));
+  $('#brandName').textContent = karteSicht ? 'Getränkekarte' : 'Getränkekasse';
+  document.title = karteSicht ? 'Getränkekarte' : 'CBRN Getränkekasse';
   document.body.classList.toggle('noKasse', !!S.kasseAus);
   if (S.kasseAus && S.tab==='kasse') S.tab='karten';
   if (S.mode==='loading') return show('v-loading');
