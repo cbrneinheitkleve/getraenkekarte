@@ -52,6 +52,7 @@ header.top .wrap{display:flex;align-items:center;gap:12px;padding-block:10px}
 .brand b{font-family:var(--f-display);font-size:21px;letter-spacing:.02em;line-height:1.1}
 .brand span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
 .role{margin-left:auto;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.myCard{min-height:38px;padding:6px 12px;font-size:14px;flex:none}
 main{padding-block:16px 24px}
 .view{display:flex;flex-direction:column;gap:16px}
 h2{font-family:var(--f-display);font-size:26px;margin:0;letter-spacing:.01em}
@@ -243,6 +244,7 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
   <div class="badge" aria-hidden="true">CBRN</div>
   <div class="brand"><b>Getränkekasse</b><span id="unitName">CBRN-Einheit</span></div>
   <div class="role" id="roleLbl"></div>
+  <button class="btn myCard" id="myCardBtn" data-act="my-card" hidden>Meine Karte</button>
 </div></header>
 
 <main class="wrap">
@@ -571,6 +573,7 @@ function render(){
   const admin = S.mode==='admin';
   $('#tabs').hidden = !admin; document.body.classList.toggle('noTabs', !admin);
   $('#roleLbl').textContent = admin ? 'Admin' : '';
+  $('#myCardBtn').hidden = !(admin && S.holder);
   if (S.mode==='loading') return show('v-loading');
   if (S.mode==='zapf'){ renderZapf(); return show('v-zapf'); }
   if (S.mode==='holder'){ renderHolder(); return show('v-holder'); }
@@ -613,7 +616,7 @@ function renderHolder(){
   }
   const frei = d.freigegeben !== false;
   const dat = t => t ? new Date(t).toLocaleDateString('de-DE') : '';
-  const tail = `<button class="btn link" data-act="to-login">Admin-Anmeldung</button>`;
+  const tail = S.session ? `<button class="btn link" data-act="to-admin">Zur Admin-Ansicht</button>` : `<button class="btn link" data-act="to-login">Admin-Anmeldung</button>`;
   if (!frei){
     $('#holderCard').innerHTML = `<div class="dcard wait" style="${cardStyle(themeOf(d))}"><div class="hd"><div><div class="kind">Getränkekarte</div><div class="name">${d.wahl==='deck'?'Deckname folgt':'Noch nicht freigeschaltet'}</div></div><div class="sub" style="text-align:right">${esc(d.einheit||'')}</div></div><div class="qr">${d.wahl==='deck'?'Der QR-Code erscheint, sobald die Getränkekasse deinen Decknamen vergeben hat.':'Der QR-Code erscheint nach deiner Auswahl.'}</div></div>`;
     $('#holderInfo').innerHTML = d.wahl==='deck'
@@ -861,7 +864,7 @@ async function decideMode(){
       else { try{ history.replaceState(null,'',BASE); }catch(e){} } } else render(); return; }
   if (session){
     let ok=false; try{ ok = await q(sb.rpc('is_admin')); }catch(e){ console.warn(e); }
-    if (ok){ S.mode='admin'; render(); await loadAll(); if (S.holder && S.wantCard) { S.tab='karten'; S.wantCard=false; render(); openCard(S.holder.k); } return; }
+    if (ok){ S.isAdmin=true; if (S.holder && S.wantCard){ S.mode='holder'; render(); await loadHolder(); return; } S.mode='admin'; render(); await loadAll(); return; }
     if (!S.holder || S.forceLogin){ S.mode='noadmin'; render(); return; }
   }
   if (S.holder && !S.forceLogin){ S.mode='holder'; render(); await loadHolder(); return; }
@@ -1428,6 +1431,7 @@ document.addEventListener('click', async ev=>{
     else if (a==='save-img'){ const blob=await cardImage(k), file=new File([blob],'Getraenkekarte-'+k.code+'.png',{type:'image/png'});
       if (navigator.canShare && navigator.canShare({files:[file]})) { try{ await navigator.share({files:[file], text:shareText(k)}); markSent(id); }catch(e){} } else { download(blob, file.name); markSent(id); } }
     else if (a==='sent-off') confirmDeact(id);
+    else if (a==='my-card'){ closeSheet(); camStop(); S.wantCard=true; S.mode='holder'; S.holderLoaded=false; await loadHolder(); scrollTo(0,0); }
     else if (a==='hscan') hScanOpen();
     else if (a==='storno') stornoSheet(id);
     else if (a==='storno-go'){ t.disabled=true; const back=t.dataset.back; await q(sb.from('buchungen').delete().eq('id',id)); toast('Abbuchung storniert – Betrag gutgeschrieben'); await loadAll(); if (back) openCard(back); else closeSheet(); }
