@@ -204,8 +204,31 @@ details summary{cursor:pointer;font-weight:600}
 .rfoot{font-size:12px;color:var(--muted)}
 footer.copy a{color:inherit;display:inline-block;padding:6px 4px}
 footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:1.5;color:var(--muted);text-wrap:balance}
+.zapf{display:flex;flex-direction:column;gap:14px}
+.zapf .who{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.zapf .who .bal{margin-left:auto;text-align:right;font-family:var(--f-mono);font-size:20px;font-weight:600}
+.zapf .qtyBig{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.zapf .qtyBig button{min-height:56px;border-radius:12px;border:2px solid var(--line);background:var(--surface);font-size:20px;font-weight:700;cursor:pointer}
+.zapf .qtyBig button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.zapf .go{min-height:72px;font-size:22px;font-family:var(--f-display);letter-spacing:.03em}
+.zapf .done{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;background:var(--surface);border:2px solid var(--pos);border-radius:16px;padding:24px 16px}
+.zapf .done .ok{width:72px;height:72px;border-radius:50%;background:var(--pos);color:#fff;display:grid;place-items:center}
+.zapf .done .ok svg{width:42px;height:42px}
+.zapf .done .big{font-family:var(--f-mono);font-size:32px;font-weight:600}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.switch input{width:52px;height:30px;accent-color:var(--primary)}
+.poster{background:#fff;color:#000;border:1px solid var(--line);border-radius:16px;padding:28px 22px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;max-width:560px;margin:0 auto}
+.poster .stripe{align-self:stretch;height:14px;border-radius:4px;background:repeating-linear-gradient(-45deg,#F2B705 0 14px,#111 14px 28px)}
+.poster h1{font-family:var(--f-display);font-size:44px;line-height:1;margin:6px 0 0}
+.poster .sub{font-size:18px;color:#333}
+.poster canvas{width:100%;max-width:360px;height:auto;image-rendering:pixelated}
+.poster ol{text-align:left;font-size:17px;line-height:1.5;margin:0;padding-left:22px;max-width:420px}
+.poster .price{font-family:var(--f-mono);font-size:22px;font-weight:600}
+.poster .logo{max-height:80px;max-width:160px;object-fit:contain}
 @media print{
   footer.copy{padding:12px 0 0;font-size:10px}
+  #v-aushang .poster{border:0;max-width:none;padding:0}
+  body.printPoster footer.copy{display:none}
   :root{--bg:#fff;--surface:#fff;--sunk:#f2f2f2;--ink:#000;--muted:#444;--line:#bbb;--pos:#000;--neg:#000;color-scheme:light}
   header.top,nav.tabs,.noprint,.toast,.sheet,body::before{display:none!important}
   body{background:#fff;padding:0!important;font-size:12px}
@@ -313,6 +336,14 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
   </section>
 
   <!-- Mehr -->
+  <section class="view" id="v-zapf" hidden><div class="zapf" id="zapfBox"></div></section>
+
+  <section class="view" id="v-aushang" hidden>
+    <div class="spread noprint"><h2>Aushang Selbstbedienung</h2><button class="btn" data-tab="mehr">Zurück</button></div>
+    <div class="row noprint"><button class="btn primary" data-act="poster-print">Drucken</button><button class="btn" data-act="poster-png">Als Bild speichern</button></div>
+    <div id="posterBox"></div>
+  </section>
+
   <section class="view" id="v-mehr" hidden>
     <h2>Einstellungen</h2>
     <form class="panel stack" id="cfgForm">
@@ -328,6 +359,12 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
       <p class="muted" style="margin:0">Wer hier steht, kann sich mit dieser E-Mail ein Konto erstellen und hat dann vollen Zugriff.</p>
       <div id="adminList" class="stack"></div>
       <form class="row" id="adminForm"><input id="adminEmail" class="inp" style="flex:1;min-width:0" type="email" placeholder="E-Mail" required><button class="btn" type="submit">Hinzufügen</button></form>
+    </div>
+    <div class="panel stack" id="selbstPanel">
+      <h3>Selbstbedienung per QR-Code</h3>
+      <p class="muted" style="margin:0">Ein QR-Code hängt am Getränkestand. Wer ein Getränk nimmt, scannt ihn mit dem eigenen Handy und bestätigt die Abbuchung von seiner Karte. Das Handy muss die Karte kennen, also den persönlichen Link einmal geöffnet haben.</p>
+      <label class="switch"><span><b>Selbstbedienung eingeschaltet</b></span><input type="checkbox" id="selbstOn"></label>
+      <button class="btn primary" data-tab="aushang">QR-Code-Aushang anzeigen &amp; drucken</button>
     </div>
     <div class="panel stack" id="kryptoPanel"></div>
     <div class="panel stack">
@@ -468,7 +505,7 @@ const AKZENTE = [['#F2B705','Gelb'],['#F07D00','Orange'],['#D32F2F','Rot'],['#FF
 function themeOf(src){ src=src||{}; return { farbe: HEX.test(src.farbe||'') && src.farbe.toUpperCase()!=='#17231F' ? src.farbe : '#000000', akzent: HEX.test(src.akzent||'')?src.akzent:'#F2B705', logo: (typeof src.logo==='string' && src.logo.startsWith('data:image/')) ? src.logo : null }; }
 function isLight(hex){ const h=hex.slice(1), r=parseInt(h.slice(0,2),16), g=parseInt(h.slice(2,4),16), b=parseInt(h.slice(4,6),16); return (0.299*r+0.587*g+0.114*b) > 160; }
 function cardStyle(th){ const L=isLight(th.farbe); return `--card-bg:${th.farbe};--amber:${th.akzent};--card-ink:${L?'#16201C':'#EEF3F0'};--card-muted:${L?'#56625C':'#A9B8B1'};--kind:${L&&isLight(th.akzent)?'#16201C':th.akzent}`; }
-function curTheme(){ return themeOf(S.mode==='holder' ? S.holderData : S.config); }
+function curTheme(){ return themeOf(S.mode==='holder'||S.mode==='zapf' ? S.holderData : S.config); }
 let brandKey='';
 function applyBrand(){
   const th=curTheme(), key=th.farbe+th.akzent+(th.logo?th.logo.length+th.logo.slice(-40):'');
@@ -508,7 +545,7 @@ function cardHTML(code, name, bal, aktiv=true, einheit, th){
 }
 function paintQRs(root){ root.querySelectorAll('canvas[data-qr]').forEach(c=>drawQR(c, qrText(c.dataset.qr), 520)); }
 function histHTML(list){
-  return list.length ? `<div class="list">${list.map(b=>`<div class="item"><span class="date">${fmtTs(b.created_at).replace(', ','<br>')}</span><span class="t"><b>${b.typ==='auf'?'Aufgeladen':'Getränk'+(b.anzahl>1?' ×'+b.anzahl:'')}</b></span><span class="amt ${b.typ==='auf'?'pos':'neg'}">${b.typ==='auf'?'+':'−'}${eur(b.betrag)}</span></div>`).join('')}</div>` : '<div class="list"><div class="empty">Noch keine Buchungen.</div></div>';
+  return list.length ? `<div class="list">${list.map(b=>`<div class="item"><span class="date">${fmtTs(b.created_at).replace(', ','<br>')}</span><span class="t"><b>${b.typ==='auf'?'Aufgeladen':'Getränk'+(b.anzahl>1?' ×'+b.anzahl:'')}</b>${b.selbst||b.von==='Selbstbedienung'?' <span class="chip">selbst</span>':''}</span><span class="amt ${b.typ==='auf'?'pos':'neg'}">${b.typ==='auf'?'+':'−'}${eur(b.betrag)}</span></div>`).join('')}</div>` : '<div class="list"><div class="empty">Noch keine Buchungen.</div></div>';
 }
 function setIcon(th){
   th = th || themeOf(null);
@@ -530,18 +567,20 @@ function setIcon(th){
 function show(id){ document.querySelectorAll('main > .view').forEach(v=>v.hidden = v.id!==id); }
 function render(){
   applyBrand();
-  $('#unitName').textContent = (S.holderData && S.mode==='holder' ? S.holderData.einheit : S.config.einheit) || 'CBRN-Einheit';
+  $('#unitName').textContent = (S.holderData && (S.mode==='holder'||S.mode==='zapf') ? S.holderData.einheit : S.config.einheit) || 'CBRN-Einheit';
   const admin = S.mode==='admin';
   $('#tabs').hidden = !admin; document.body.classList.toggle('noTabs', !admin);
   $('#roleLbl').textContent = admin ? 'Admin' : '';
   if (S.mode==='loading') return show('v-loading');
+  if (S.mode==='zapf'){ renderZapf(); return show('v-zapf'); }
   if (S.mode==='holder'){ renderHolder(); return show('v-holder'); }
   if (S.mode==='login'){ $('#backToCard').hidden = !S.holder; return show('v-login'); }
   if (S.mode==='newpw') return show('v-newpw');
   if (S.mode==='noadmin'){ $('#naEmail').textContent = S.session?.user?.email||''; return show('v-noadmin'); }
-  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-current', b.dataset.tab===(S.tab==='bericht'?'mehr':S.tab)?'page':'false'));
+  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-current', b.dataset.tab===(S.tab==='bericht'||S.tab==='aushang'?'mehr':S.tab)?'page':'false'));
   show('v-'+S.tab);
-  renderKasse(); renderKarten(); renderScan(); renderCfg(); if (S.tab==='bericht') renderBericht();
+  renderKasse(); renderKarten(); renderScan(); renderCfg(); if (S.tab==='bericht') renderBericht(); if (S.tab==='aushang') renderPoster();
+  if ($('#selbstOn') && document.activeElement!==$('#selbstOn')) $('#selbstOn').checked = !!S.config.selbstbedienung;
   if (S.sheet && S.sheet.kind==='karte') openCard(S.sheet.id);
 }
 
@@ -597,6 +636,7 @@ function renderHolder(){
         ${plain?'<span class="muted">Dein Name wird bei der nächsten Aktualisierung durch einen Decknamen ersetzt.</span>':''}${choiceHTML(d,'wechsel-klar')}</div></details>`
     : `<details class="panel"><summary>Wie soll deine Karte heißen?</summary><div style="margin-top:12px">${choiceHTML(d,'erst')}</div></details>`;
   $('#holderInfo').innerHTML = `
+    ${d.selbstbedienung && d.aktiv ? `<button class="btn primary wide" data-act="zapf-open" style="min-height:56px;font-size:18px">Getränk nehmen &amp; selbst abbuchen</button>` : ''}
     <h3>Verlauf</h3>${histHTML(d.verlauf||[])}
     <p class="muted" style="margin:0;text-align:center">Zeig den QR-Code an der Getränkeausgabe. Pro Getränk werden ${eur(d.preis)} abgebucht.</p>
     ${!d.aktiv?`<div class="notice"><b>Diese Karte ist gesperrt.</b> Bitte wende dich an die Getränkekasse.</div>`:''}
@@ -668,7 +708,7 @@ function renderKarten(){
       <span class="num" style="font-weight:600">${eur(b)}</span>${sentBtn(k)}<span class="meter"><i class="${b<S.config.preis?'low':''}" style="width:${pct}%"></i></span></div>`;}).join('')}</div>`);
   const names = Object.fromEntries(S.karten.map(k=>[k.code,disp(k)]));
   const recent = S.buch.filter(b=>b.typ==='ab').sort((a,b)=>b.created_at.localeCompare(a.created_at)).slice(0,25);
-  $('#buchList').innerHTML = recent.length ? `<div class="list">${recent.map(b=>`<div class="item"><span class="date">${fmtTs(b.created_at).replace(', ','<br>')}</span><span class="t"><b>${esc(names[b.karte]||b.karte)}</b><small class="num">${b.karte}${b.anzahl>1?' · '+b.anzahl+' Getränke':''}</small></span><span class="amt neg">−${eur(b.betrag)}</span></div>`).join('')}</div>`
+  $('#buchList').innerHTML = recent.length ? `<div class="list">${recent.map(b=>`<div class="item"><span class="date">${fmtTs(b.created_at).replace(', ','<br>')}</span><span class="t"><b>${esc(names[b.karte]||b.karte)}</b><small class="num">${b.von==='Selbstbedienung'?'<span class="chip">Selbstbedienung</span> ':''}${b.karte}${b.anzahl>1?' · '+b.anzahl+' Getränke':''}</small></span><span class="amt neg">−${eur(b.betrag)}</span></div>`).join('')}</div>`
     : `<div class="list"><div class="empty">Noch keine Abbuchungen.</div></div>`;
 }
 
@@ -808,13 +848,15 @@ async function loadAll(){
   }catch(e){ fail(e,'Laden'); }
 }
 async function loadHolder(){
+  S.holderLoaded=false;
   try{ S.holderData = await q(sb.rpc('karte_anzeigen',{p_code:S.holder.k, p_token:S.holder.t})); }
   catch(e){ console.warn(e); if (!S.holderData) S.holderData=null; toast('Keine Verbindung. Bitte später erneut versuchen.'); }
-  render();
+  S.holderLoaded=true; render();
 }
 async function decideMode(){
   if (S.recovery){ S.mode='newpw'; render(); return; }
   const {data:{session}} = await sb.auth.getSession(); S.session = session;
+  if (S.zapf && !S.forceLogin){ S.mode='zapf'; render(); if (S.holder) await loadHolder(); else render(); return; }
   if (session){
     let ok=false; try{ ok = await q(sb.rpc('is_admin')); }catch(e){ console.warn(e); }
     if (ok){ S.mode='admin'; render(); await loadAll(); if (S.holder && S.wantCard) { S.tab='karten'; S.wantCard=false; render(); openCard(S.holder.k); } return; }
@@ -964,6 +1006,98 @@ async function setOk(code, on, btn){
     }
     await loadAll(); openCard(code);
   }catch(e){ fail(e,'Speichern'); if (btn) btn.disabled=false; }
+}
+
+/* ---------- Selbstbedienung ---------- */
+const OKSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const zapfURL = () => BASE + '?zapf=1';
+function renderZapf(){
+  const box=$('#zapfBox'), d=S.holderData, z=S.zapfState||(S.zapfState={qty:1});
+  const adm = S.session ? `<button class="btn link" data-act="to-admin">Zur Admin-Ansicht</button>` : `<button class="btn link" data-act="to-login">Admin-Anmeldung</button>`;
+  const tail = `<div class="row" style="justify-content:center"><button class="btn link" data-act="zapf-card">Zu meiner Karte</button>${adm}</div>`;
+  if (!S.holder){
+    box.innerHTML = `<h2>Getränk nehmen</h2><div class="notice stack" style="gap:8px"><b>Auf diesem Handy ist noch keine Getränkekarte gespeichert.</b>
+      <span>Öffne einmal den persönlichen Link deiner Karte (aus WhatsApp oder E-Mail) <b>in diesem Browser</b>. Danach kannst du hier jederzeit per QR-Code abbuchen.</span>
+      <span class="muted">iPhone: Hast du deine Karte als Symbol auf dem Home-Bildschirm? Dann öffne die Karte dort und tippe auf „Getränk nehmen &amp; selbst abbuchen“.</span></div>
+      ${adm}`; return;
+  }
+  if (!S.holderLoaded){ box.innerHTML = '<div class="panel empty">Karte wird geladen …</div>'; return; }
+  if (!d){ box.innerHTML = `<h2>Getränk nehmen</h2><div class="notice">Deine gespeicherte Karte wurde nicht gefunden. Öffne deinen persönlichen Link bitte noch einmal.</div>${tail}`; return; }
+  const who = `<div class="who"><div><div class="label">Karte</div><b style="font-size:20px">${esc(d.name)}</b></div><div class="bal"><div class="label" style="font-family:var(--f-body)">Guthaben</div>${eur(z.done?z.done.guthaben:d.guthaben)}</div></div>`;
+  if (z.done){
+    const r=z.done, canUndo = !r.undone && Date.now()-r.ts < 115000;
+    box.innerHTML = `<div class="done" role="status"><div class="ok">${OKSVG}</div><b style="font-size:20px">${r.undone?'Zurückgenommen':'Abgebucht – Prost!'}</b>
+      <span class="big ${r.undone?'':'neg'}">${r.undone?'±0,00 €':'−'+eur(r.betrag)}</span><span class="muted">${r.anzahl>1?r.anzahl+' Getränke · ':''}Restguthaben ${eur(r.guthaben)}</span></div>
+      ${canUndo?`<button class="btn" data-act="zapf-undo">Versehen? Rückgängig machen</button>`:''}
+      <button class="btn primary" data-act="zapf-again">Noch ein Getränk</button>${tail}`; return;
+  }
+  if (!d.selbstbedienung){ box.innerHTML = `<h2>Getränk nehmen</h2>${who}<div class="notice">Die Selbstbedienung ist gerade ausgeschaltet. Bitte an der Kasse abbuchen lassen.</div>${tail}`; return; }
+  if (!d.aktiv){ box.innerHTML = `<h2>Getränk nehmen</h2>${who}<div class="notice"><b>Deine Karte ist gesperrt.</b> Bitte wende dich an die Getränkekasse.</div>${tail}`; return; }
+  if (d.freigegeben===false){ box.innerHTML = `<h2>Getränk nehmen</h2>${who}<div class="notice">Deine Karte ist noch nicht freigeschaltet.</div><button class="btn primary" data-act="zapf-card">Zu meiner Karte</button>`; return; }
+  const total = d.preis*z.qty, enough = d.guthaben >= total;
+  box.innerHTML = `<h2>Getränk nehmen</h2>${who}
+    <span class="label">Wie viele Getränke?</span>
+    <div class="qtyBig" role="group" aria-label="Anzahl">${[1,2,3,4].map(n=>`<button data-act="zapf-qty" data-n="${n}" aria-pressed="${z.qty===n}">${n}</button>`).join('')}</div>
+    ${enough ? '' : `<div class="notice">Dein Guthaben reicht dafür nicht. Lade die Karte an der Kasse auf.</div>`}
+    ${z.err?`<div class="notice">${esc(z.err)}</div>`:''}
+    <button class="btn primary wide go" data-act="zapf-go" ${enough&&!z.busy?'':'disabled'}>${z.busy?'Wird abgebucht …':eur(total)+' abbuchen'}</button>
+    <span class="muted" style="text-align:center;font-size:14px">Pro Getränk ${eur(d.preis)}. Erst mit dem Tippen wird abgebucht.</span>${tail}`;
+}
+async function zapfGo(){
+  const z=S.zapfState; if (z.busy) return; z.busy=true; z.err=null; renderZapf();
+  try{
+    const r = await q(sb.rpc('selbst_abbuchen',{p_code:S.holder.k, p_token:S.holder.t, p_anzahl:z.qty}));
+    if (!r.ok){
+      z.err = r.fehler==='guthaben' ? 'Guthaben reicht nicht: noch '+eur(r.guthaben)+', benötigt '+eur(r.betrag)+'.'
+        : r.fehler==='zu_schnell' ? 'Gerade eben wurde schon abgebucht. Bitte kurz warten, falls du wirklich noch eins nimmst.'
+        : r.fehler==='aus' ? 'Die Selbstbedienung ist gerade ausgeschaltet.'
+        : r.fehler==='deaktiviert' ? 'Deine Karte ist gesperrt.'
+        : r.fehler==='nicht_freigegeben' ? 'Deine Karte ist noch nicht freigeschaltet.' : 'Karte nicht gefunden.';
+      if (navigator.vibrate) try{navigator.vibrate([80,60,80])}catch(e){}
+    } else {
+      z.done = {...r, ts:Date.now()}; z.qty=1; if (navigator.vibrate) try{navigator.vibrate(60)}catch(e){}
+      try{ history.replaceState(null,'',BASE); }catch(e){}
+      S.holderData.guthaben = r.guthaben;
+      setTimeout(()=>{ if (S.mode==='zapf') renderZapf(); }, 116000);
+    }
+  }catch(e){ z.err = /selbst_abbuchen|function/i.test(e.message||'') ? 'Die Selbstbedienung ist noch nicht eingerichtet.' : 'Keine Verbindung. Bitte erneut versuchen.'; }
+  finally{ z.busy=false; renderZapf(); }
+}
+async function zapfUndo(){
+  const z=S.zapfState, r=z.done; if (!r || r.undone) return;
+  try{ const x = await q(sb.rpc('selbst_storno',{p_code:S.holder.k, p_token:S.holder.t, p_id:r.id}));
+    if (x.ok){ r.undone=true; r.guthaben += r.betrag; S.holderData.guthaben=r.guthaben; toast('Abbuchung zurückgenommen'); }
+    else toast('Zurücknehmen geht nur in den ersten 2 Minuten. Bitte an der Kasse melden.');
+  }catch(e){ toast('Keine Verbindung.'); }
+  renderZapf();
+}
+function renderPoster(){
+  const th=themeOf(S.config);
+  $('#posterBox').innerHTML = `<div class="poster" id="poster"><div class="stripe"></div>
+    ${th.logo?`<img class="logo" src="${th.logo}" alt="">`:''}
+    <div class="label" style="color:#555">${esc(S.config.einheit||'')}</div>
+    <h1>Getränk genommen?<br>Hier scannen!</h1>
+    <canvas id="posterQR" aria-label="QR-Code Selbstbedienung"></canvas>
+    <ol><li>QR-Code mit der Handy-Kamera scannen.</li><li>Anzahl wählen und auf „abbuchen“ tippen.</li><li>Fertig – der Betrag wird von deiner Getränkekarte abgebucht.</li></ol>
+    <div class="price">${eur(S.config.preis)} pro Getränk</div>
+    <div class="sub" style="font-size:14px">Funktioniert auf dem Handy, auf dem du deinen persönlichen Karten-Link geöffnet hast.</div>
+    <div class="stripe"></div></div>
+    ${S.config.selbstbedienung?'':'<div class="notice noprint" style="margin-top:12px">Die Selbstbedienung ist noch ausgeschaltet. Schalte sie unter Mehr ein, bevor du den Aushang aufhängst.</div>'}
+    <p class="muted noprint" style="text-align:center;font-size:13px">Der QR-Code führt zu: ${esc(zapfURL())}</p>`;
+  drawQR($('#posterQR'), zapfURL(), 720);
+}
+async function posterPNG(){
+  const W=1240,H=1754,c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
+  x.fillStyle='#fff'; x.fillRect(0,0,W,H);
+  const stripe=y=>{ x.save(); x.beginPath(); x.rect(80,y,W-160,36); x.clip(); for(let i=40;i<W+80;i+=72){ x.fillStyle='#F2B705'; x.beginPath(); x.moveTo(i,y); x.lineTo(i+36,y); x.lineTo(i,y+36); x.lineTo(i-36,y+36); x.fill(); x.fillStyle='#111'; x.beginPath(); x.moveTo(i+36,y); x.lineTo(i+72,y); x.lineTo(i+36,y+36); x.lineTo(i,y+36); x.fill(); } x.restore(); };
+  stripe(80); stripe(H-116);
+  x.textAlign='center'; x.fillStyle='#555'; x.font='600 34px Barlow, sans-serif'; x.fillText((S.config.einheit||'').toUpperCase(), W/2, 190);
+  x.fillStyle='#000'; x.font='700 104px "Barlow Condensed", Arial Narrow, sans-serif'; x.fillText('Getränk genommen?', W/2, 310); x.fillText('Hier scannen!', W/2, 420);
+  const q=document.createElement('canvas'); drawQR(q, zapfURL(), 760); x.imageSmoothingEnabled=false; x.drawImage(q,(W-760)/2,470,760,760);
+  x.font='500 40px Barlow, sans-serif'; x.fillStyle='#111';
+  ['1. QR-Code mit der Handy-Kamera scannen','2. Anzahl wählen und „abbuchen“ tippen','3. Fertig – Betrag wird von der Karte abgebucht'].forEach((t,i)=>x.fillText(t, W/2, 1320+i*62));
+  x.font='600 52px "IBM Plex Mono", monospace'; x.fillText(eur(S.config.preis)+' pro Getränk', W/2, 1560);
+  const blob=await new Promise(r=>c.toBlob(r,'image/png')); download(blob,'Aushang-Selbstbedienung.png');
 }
 
 /* ---------- Sheets ---------- */
@@ -1256,6 +1390,15 @@ document.addEventListener('click', async ev=>{
     else if (a==='save-img'){ const blob=await cardImage(k), file=new File([blob],'Getraenkekarte-'+k.code+'.png',{type:'image/png'});
       if (navigator.canShare && navigator.canShare({files:[file]})) { try{ await navigator.share({files:[file], text:shareText(k)}); markSent(id); }catch(e){} } else { download(blob, file.name); markSent(id); } }
     else if (a==='sent-off') confirmDeact(id);
+    else if (a==='to-admin'){ S.zapf=false; S.zapfState=null; S.wantCard=false; try{ history.replaceState(null,'',BASE); }catch(e){} decideMode(); }
+    else if (a==='zapf-open'){ S.zapfState={qty:1}; S.mode='zapf'; render(); scrollTo(0,0); }
+    else if (a==='zapf-card'){ S.zapf=false; S.zapfState=null; try{ history.replaceState(null,'',BASE); }catch(e){} S.mode='holder'; render(); loadHolder(); }
+    else if (a==='zapf-qty'){ S.zapfState.qty=+t.dataset.n; S.zapfState.err=null; renderZapf(); }
+    else if (a==='zapf-go') zapfGo();
+    else if (a==='zapf-undo') zapfUndo();
+    else if (a==='zapf-again'){ S.zapfState={qty:1}; await loadHolder(); }
+    else if (a==='poster-print'){ document.body.classList.add('printPoster'); window.print(); setTimeout(()=>document.body.classList.remove('printPoster'),1000); }
+    else if (a==='poster-png') posterPNG();
     else if (a==='el-overview') elOverview();
     else if (a==='todo-release'){ S.onlyTodo=!S.onlyTodo; renderKarten(); }
     else if (a==='ok-on') okSheet(id, true);
@@ -1350,6 +1493,12 @@ $('#lookSave').addEventListener('click', async()=>{
   finally{ btn.textContent='Aussehen speichern'; }
 });
 
+document.addEventListener('change', async ev=>{
+  if (ev.target.id!=='selbstOn') return; const on=ev.target.checked;
+  try{ await q(sb.from('config').update({selbstbedienung:on}).eq('id',1)); S.config.selbstbedienung=on; toast(on?'Selbstbedienung eingeschaltet':'Selbstbedienung ausgeschaltet'); }
+  catch(e){ ev.target.checked=!on; if (/selbstbedienung/.test(e.message||'')) toast('Datenbank-Update fehlt: bitte update-selbstbedienung.sql ausführen.'); else fail(e); }
+});
+
 /* ---------- Start ---------- */
 $('#lForgot').addEventListener('click', async()=>{
   const email=$('#lEmail').value.trim();
@@ -1369,6 +1518,7 @@ sb.auth.onAuthStateChange(ev=>{ if (ev==='PASSWORD_RECOVERY'){ S.recovery=true; 
 (function boot(){
   if (/type=recovery/.test(location.hash)) S.recovery=true;
   const p=new URLSearchParams(location.search), k=(p.get('k')||'').toUpperCase(), t=p.get('t')||'';
+  if (p.has('zapf')) S.zapf=true;
   if (k && t){ S.holder={k,t}; S.wantCard=true; try{ localStorage.setItem('cbrnKarte', JSON.stringify(S.holder)); }catch(e){} }
   else { try{ const s=JSON.parse(localStorage.getItem('cbrnKarte')||'null'); if (s && s.k && s.t) S.holder=s; }catch(e){} }
   decideMode();
