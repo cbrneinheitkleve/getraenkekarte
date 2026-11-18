@@ -178,6 +178,8 @@ body.locked{overflow:hidden}
 .sheet .pn{position:relative;background:var(--surface);width:100%;max-width:720px;max-height:92%;max-height:calc(100dvh - env(safe-area-inset-top,0px) - 24px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;border-radius:18px 18px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
 nav.tabs .in{max-width:720px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+body.noKasse nav.tabs .in{grid-template-columns:repeat(3,1fr)}
+body.noKasse nav.tabs [data-tab="kasse"]{display:none}
 nav.tabs button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-radius:10px}
 nav.tabs button svg{width:24px;height:24px}
 nav.tabs button[aria-current="page"]{color:var(--primary);background:color-mix(in srgb,var(--primary) 12%,transparent)}
@@ -362,6 +364,11 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
       <div id="adminList" class="stack"></div>
       <form class="row" id="adminForm"><input id="adminEmail" class="inp" style="flex:1;min-width:0" type="email" placeholder="E-Mail" required><button class="btn" type="submit">Hinzufügen</button></form>
     </div>
+    <div class="panel stack">
+      <h3>Kassenbuch</h3>
+      <p class="muted" style="margin:0">Wer nur die Getränkekarten nutzt, kann den Reiter „Kasse“ ausblenden. Kartenverkäufe und Aufladungen werden trotzdem im Hintergrund mitgeschrieben und sind sofort wieder da, wenn du ihn einblendest.</p>
+      <label class="switch"><span><b>Reiter „Kasse“ ausblenden</b><br><span class="muted" style="font-size:14px">gilt für dieses Gerät</span></span><input type="checkbox" id="kasseAusSw"></label>
+    </div>
     <div class="panel stack" id="selbstPanel">
       <h3>Selbstbedienung per QR-Code</h3>
       <p class="muted" style="margin:0">Ein QR-Code hängt am Getränkestand. Wer ein Getränk nimmt, scannt ihn mit dem eigenen Handy und bestätigt die Abbuchung von seiner Karte. Das Handy muss die Karte kennen, also den persönlichen Link einmal geöffnet haben.</p>
@@ -413,7 +420,9 @@ const SUPABASE_KEY = 'sb_publishable_GGhAl2v7Rn_r1X9ynJVvhg_8236NrpJ';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:true, autoRefreshToken:true}});
 
 const $ = s => document.querySelector(s);
-const S = { mode:'loading', tab:'kasse', session:null, config:{einheit:'CBRN-Einheit', preis:150, wert:1000},
+const KASSE_KEY='cbrnKasseAus';
+const kasseAus = (()=>{ try{ return localStorage.getItem(KASSE_KEY)==='1'; }catch(e){ return false; } })();
+const S = { mode:'loading', tab: kasseAus ? 'karten' : 'kasse', kasseAus, session:null, config:{einheit:'CBRN-Einheit', preis:150, wert:1000},
   kasse:[], karten:[], buch:[], admins:[], qty:1, lastScan:null, holder:null, holderData:null, sheet:null, signup:false, klar:{}, klarCache:{} };
 const ANF = 'Anfangsbestand (Übertrag)';
 const KAT_IN = ['Getränkekarten-Verkauf', ANF,'Barverkauf','Pfandrückgabe','Spende/Zuschuss','Sonstiges'];
@@ -574,6 +583,8 @@ function render(){
   $('#tabs').hidden = !admin; document.body.classList.toggle('noTabs', !admin);
   $('#roleLbl').textContent = admin ? 'Admin' : '';
   $('#myCardBtn').hidden = !(admin && S.holder);
+  document.body.classList.toggle('noKasse', !!S.kasseAus);
+  if (S.kasseAus && S.tab==='kasse') S.tab='karten';
   if (S.mode==='loading') return show('v-loading');
   if (S.mode==='zapf'){ renderZapf(); return show('v-zapf'); }
   if (S.mode==='holder'){ renderHolder(); return show('v-holder'); }
@@ -584,6 +595,7 @@ function render(){
   show('v-'+S.tab);
   renderKasse(); renderKarten(); renderScan(); renderCfg(); if (S.tab==='bericht') renderBericht(); if (S.tab==='aushang') renderPoster();
   if ($('#selbstOn') && document.activeElement!==$('#selbstOn')) $('#selbstOn').checked = !!S.config.selbstbedienung;
+  if ($('#kasseAusSw')) $('#kasseAusSw').checked = !!S.kasseAus;
   if (S.sheet && S.sheet.kind==='karte') openCard(S.sheet.id);
 }
 
@@ -1535,6 +1547,7 @@ $('#lookSave').addEventListener('click', async()=>{
   finally{ btn.textContent='Aussehen speichern'; }
 });
 
+document.addEventListener('change', ev=>{ if (ev.target.id!=='kasseAusSw') return; S.kasseAus=ev.target.checked; try{ localStorage.setItem(KASSE_KEY, S.kasseAus?'1':'0'); }catch(e){} render(); toast(S.kasseAus?'Reiter „Kasse“ ausgeblendet':'Reiter „Kasse“ eingeblendet'); });
 document.addEventListener('change', async ev=>{
   if (ev.target.id!=='selbstOn') return; const on=ev.target.checked;
   try{ await q(sb.from('config').update({selbstbedienung:on}).eq('id',1)); S.config.selbstbedienung=on; toast(on?'Selbstbedienung eingeschaltet':'Selbstbedienung ausgeschaltet'); }
