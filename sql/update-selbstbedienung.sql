@@ -23,8 +23,10 @@ language sql stable security definer set search_path = public as $$
 $$;
 grant execute on function public.karte_anzeigen(text, text) to anon, authenticated;
 
--- Selbst abbuchen: Karteninhaber bucht mit dem eigenen Kartenlink ab (nur wenn Selbstbedienung eingeschaltet)
-create or replace function public.selbst_abbuchen(p_code text, p_token text, p_anzahl int default 1) returns json
+-- Selbst abbuchen: Karteninhaber bucht mit dem eigenen Kartenlink ab (nur wenn Selbstbedienung eingeschaltet).
+-- p_bewusst = false beim Scannen des Aushangs (Schutz gegen Doppel-Scan), true bei bewusstem Tipp auf "Noch ein Getränk".
+drop function if exists public.selbst_abbuchen(text, text, int);
+create or replace function public.selbst_abbuchen(p_code text, p_token text, p_anzahl int default 1, p_bewusst boolean default false) returns json
 language plpgsql security definer set search_path = public as $$
 declare
   k public.karten;
@@ -38,7 +40,7 @@ begin
   if not k.aktiv then return json_build_object('ok', false, 'fehler', 'deaktiviert'); end if;
   if not k.freigegeben then return json_build_object('ok', false, 'fehler', 'nicht_freigegeben'); end if;
   -- Schutz gegen versehentliches Doppel-Tippen
-  if exists (select 1 from public.buchungen where karte = k.code and von = 'Selbstbedienung'
+  if not coalesce(p_bewusst, false) and exists (select 1 from public.buchungen where karte = k.code and von = 'Selbstbedienung'
              and created_at > now() - interval '15 seconds') then
     return json_build_object('ok', false, 'fehler', 'zu_schnell');
   end if;
@@ -52,8 +54,8 @@ begin
     values (k.code, 'ab', v_betrag, v_anz, 'Selbstbedienung') returning id into v_id;
   return json_build_object('ok', true, 'id', v_id, 'name', k.name, 'betrag', v_betrag, 'anzahl', v_anz, 'guthaben', v_bal - v_betrag);
 end $$;
-revoke execute on function public.selbst_abbuchen(text, text, int) from public;
-grant execute on function public.selbst_abbuchen(text, text, int) to anon, authenticated;
+revoke execute on function public.selbst_abbuchen(text, text, int, boolean) from public;
+grant execute on function public.selbst_abbuchen(text, text, int, boolean) to anon, authenticated;
 
 -- Eigene Selbstbedienungs-Abbuchung innerhalb von 2 Minuten zurücknehmen
 create or replace function public.selbst_storno(p_code text, p_token text, p_id uuid) returns json

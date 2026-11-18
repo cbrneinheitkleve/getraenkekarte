@@ -636,7 +636,7 @@ function renderHolder(){
         ${plain?'<span class="muted">Dein Name wird bei der nächsten Aktualisierung durch einen Decknamen ersetzt.</span>':''}${choiceHTML(d,'wechsel-klar')}</div></details>`
     : `<details class="panel"><summary>Wie soll deine Karte heißen?</summary><div style="margin-top:12px">${choiceHTML(d,'erst')}</div></details>`;
   $('#holderInfo').innerHTML = `
-    ${d.selbstbedienung && d.aktiv ? `<button class="btn primary wide" data-act="zapf-open" style="min-height:56px;font-size:18px">Getränk nehmen &amp; selbst abbuchen</button>` : ''}
+    ${d.selbstbedienung && d.aktiv ? `<button class="btn primary wide" data-act="zapf-open" style="min-height:56px;font-size:18px">Getränk nehmen (−${eur(d.preis)})</button>` : ''}
     <h3>Verlauf</h3>${histHTML(d.verlauf||[])}
     <p class="muted" style="margin:0;text-align:center">Zeig den QR-Code an der Getränkeausgabe. Pro Getränk werden ${eur(d.preis)} abgebucht.</p>
     ${!d.aktiv?`<div class="notice"><b>Diese Karte ist gesperrt.</b> Bitte wende dich an die Getränkekasse.</div>`:''}
@@ -856,7 +856,9 @@ async function loadHolder(){
 async function decideMode(){
   if (S.recovery){ S.mode='newpw'; render(); return; }
   const {data:{session}} = await sb.auth.getSession(); S.session = session;
-  if (S.zapf && !S.forceLogin){ S.mode='zapf'; render(); if (S.holder) await loadHolder(); else render(); return; }
+  if (S.zapf && !S.forceLogin){ S.mode='zapf'; render(); if (S.holder){ await loadHolder(); const d=S.holderData;
+      if (!S.zapfAuto && d && d.selbstbedienung && d.aktiv && d.freigegeben!==false && d.guthaben>=d.preis){ S.zapfAuto=true; await zapfGo(false); }
+      else { try{ history.replaceState(null,'',BASE); }catch(e){} } } else render(); return; }
   if (session){
     let ok=false; try{ ok = await q(sb.rpc('is_admin')); }catch(e){ console.warn(e); }
     if (ok){ S.mode='admin'; render(); await loadAll(); if (S.holder && S.wantCard) { S.tab='karten'; S.wantCard=false; render(); openCard(S.holder.k); } return; }
@@ -1012,56 +1014,53 @@ async function setOk(code, on, btn){
 const OKSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 const zapfURL = () => BASE + '?zapf=1';
 function renderZapf(){
-  const box=$('#zapfBox'), d=S.holderData, z=S.zapfState||(S.zapfState={qty:1});
+  const box=$('#zapfBox'), d=S.holderData, z=S.zapfState||(S.zapfState={});
   const adm = S.session ? `<button class="btn link" data-act="to-admin">Zur Admin-Ansicht</button>` : `<button class="btn link" data-act="to-login">Admin-Anmeldung</button>`;
   const tail = `<div class="row" style="justify-content:center"><button class="btn link" data-act="zapf-card">Zu meiner Karte</button>${adm}</div>`;
   if (!S.holder){
     box.innerHTML = `<h2>Getränk nehmen</h2><div class="notice stack" style="gap:8px"><b>Auf diesem Handy ist noch keine Getränkekarte gespeichert.</b>
-      <span>Öffne einmal den persönlichen Link deiner Karte (aus WhatsApp oder E-Mail) <b>in diesem Browser</b>. Danach kannst du hier jederzeit per QR-Code abbuchen.</span>
-      <span class="muted">iPhone: Hast du deine Karte als Symbol auf dem Home-Bildschirm? Dann öffne die Karte dort und tippe auf „Getränk nehmen &amp; selbst abbuchen“.</span></div>
+      <span>Öffne einmal den persönlichen Link deiner Karte (aus WhatsApp oder E-Mail) <b>in diesem Browser</b>. Danach bucht ein Scan des QR-Codes automatisch ab.</span>
+      <span class="muted">iPhone: Hast du deine Karte als Symbol auf dem Home-Bildschirm? Dann öffne die Karte dort und tippe auf „Getränk nehmen“.</span></div>
       ${adm}`; return;
   }
-  if (!S.holderLoaded){ box.innerHTML = '<div class="panel empty">Karte wird geladen …</div>'; return; }
+  if (!S.holderLoaded || (z.busy && !z.done)){ box.innerHTML = `<div class="panel empty">${z.busy?'Getränk wird abgebucht …':'Karte wird geladen …'}</div>`; return; }
   if (!d){ box.innerHTML = `<h2>Getränk nehmen</h2><div class="notice">Deine gespeicherte Karte wurde nicht gefunden. Öffne deinen persönlichen Link bitte noch einmal.</div>${tail}`; return; }
-  const who = `<div class="who"><div><div class="label">Karte</div><b style="font-size:20px">${esc(d.name)}</b></div><div class="bal"><div class="label" style="font-family:var(--f-body)">Guthaben</div>${eur(z.done?z.done.guthaben:d.guthaben)}</div></div>`;
+  const who = `<div class="who"><div><div class="label">Karte</div><b style="font-size:20px">${esc(d.name)}</b></div><div class="bal"><div class="label" style="font-family:var(--f-body)">Guthaben</div>${eur(d.guthaben)}</div></div>`;
+  const again = d.selbstbedienung && d.aktiv && d.freigegeben!==false && d.guthaben>=d.preis
+    ? `<button class="btn primary wide go" data-act="zapf-again" ${z.busy?'disabled':''}>${z.busy?'Wird abgebucht …':'Noch ein Getränk (−'+eur(d.preis)+')'}</button>` : '';
   if (z.done){
     const r=z.done, canUndo = !r.undone && Date.now()-r.ts < 115000;
     box.innerHTML = `<div class="done" role="status"><div class="ok">${OKSVG}</div><b style="font-size:20px">${r.undone?'Zurückgenommen':'Abgebucht – Prost!'}</b>
-      <span class="big ${r.undone?'':'neg'}">${r.undone?'±0,00 €':'−'+eur(r.betrag)}</span><span class="muted">${r.anzahl>1?r.anzahl+' Getränke · ':''}Restguthaben ${eur(r.guthaben)}</span></div>
+      <span class="big ${r.undone?'':'neg'}">${r.undone?'±0,00 €':'−'+eur(r.betrag)}</span><span class="muted">${esc(d.name)} · Restguthaben ${eur(d.guthaben)}</span></div>
+      ${z.err?`<div class="notice">${esc(z.err)}</div>`:''}
       ${canUndo?`<button class="btn" data-act="zapf-undo">Versehen? Rückgängig machen</button>`:''}
-      <button class="btn primary" data-act="zapf-again">Noch ein Getränk</button>${tail}`; return;
+      ${again}${tail}`; return;
   }
-  if (!d.selbstbedienung){ box.innerHTML = `<h2>Getränk nehmen</h2>${who}<div class="notice">Die Selbstbedienung ist gerade ausgeschaltet. Bitte an der Kasse abbuchen lassen.</div>${tail}`; return; }
-  if (!d.aktiv){ box.innerHTML = `<h2>Getränk nehmen</h2>${who}<div class="notice"><b>Deine Karte ist gesperrt.</b> Bitte wende dich an die Getränkekasse.</div>${tail}`; return; }
-  if (d.freigegeben===false){ box.innerHTML = `<h2>Getränk nehmen</h2>${who}<div class="notice">Deine Karte ist noch nicht freigeschaltet.</div><button class="btn primary" data-act="zapf-card">Zu meiner Karte</button>`; return; }
-  const total = d.preis*z.qty, enough = d.guthaben >= total;
-  box.innerHTML = `<h2>Getränk nehmen</h2>${who}
-    <span class="label">Wie viele Getränke?</span>
-    <div class="qtyBig" role="group" aria-label="Anzahl">${[1,2,3,4].map(n=>`<button data-act="zapf-qty" data-n="${n}" aria-pressed="${z.qty===n}">${n}</button>`).join('')}</div>
-    ${enough ? '' : `<div class="notice">Dein Guthaben reicht dafür nicht. Lade die Karte an der Kasse auf.</div>`}
-    ${z.err?`<div class="notice">${esc(z.err)}</div>`:''}
-    <button class="btn primary wide go" data-act="zapf-go" ${enough&&!z.busy?'':'disabled'}>${z.busy?'Wird abgebucht …':eur(total)+' abbuchen'}</button>
-    <span class="muted" style="text-align:center;font-size:14px">Pro Getränk ${eur(d.preis)}. Erst mit dem Tippen wird abgebucht.</span>${tail}`;
+  const msg = z.err ? esc(z.err)
+    : !d.selbstbedienung ? 'Die Selbstbedienung ist gerade ausgeschaltet. Bitte an der Kasse abbuchen lassen.'
+    : !d.aktiv ? '<b>Deine Karte ist gesperrt.</b> Bitte wende dich an die Getränkekasse.'
+    : d.freigegeben===false ? 'Deine Karte ist noch nicht freigeschaltet.'
+    : d.guthaben < d.preis ? 'Dein Guthaben reicht für kein Getränk mehr. Lade die Karte an der Kasse auf.' : '';
+  box.innerHTML = `<h2>Getränk nehmen</h2>${who}${msg?`<div class="notice">${msg}</div>`:''}${msg && !z.err ? '' : again}${tail}`;
 }
-async function zapfGo(){
-  const z=S.zapfState; if (z.busy) return; z.busy=true; z.err=null; renderZapf();
+async function zapfGo(bewusst){
+  const z=S.zapfState||(S.zapfState={}); if (z.busy) return; z.busy=true; z.err=null; renderZapf();
   try{
-    const r = await q(sb.rpc('selbst_abbuchen',{p_code:S.holder.k, p_token:S.holder.t, p_anzahl:z.qty}));
+    const r = await q(sb.rpc('selbst_abbuchen',{p_code:S.holder.k, p_token:S.holder.t, p_anzahl:1, p_bewusst:!!bewusst}));
     if (!r.ok){
-      z.err = r.fehler==='guthaben' ? 'Guthaben reicht nicht: noch '+eur(r.guthaben)+', benötigt '+eur(r.betrag)+'.'
-        : r.fehler==='zu_schnell' ? 'Gerade eben wurde schon abgebucht. Bitte kurz warten, falls du wirklich noch eins nimmst.'
+      z.err = r.fehler==='guthaben' ? 'Guthaben reicht nicht: noch '+eur(r.guthaben)+', ein Getränk kostet '+eur(r.betrag)+'.'
+        : r.fehler==='zu_schnell' ? 'Gerade eben wurde schon abgebucht – deshalb nicht noch einmal. Für ein weiteres Getränk auf „Noch ein Getränk“ tippen.'
         : r.fehler==='aus' ? 'Die Selbstbedienung ist gerade ausgeschaltet.'
         : r.fehler==='deaktiviert' ? 'Deine Karte ist gesperrt.'
         : r.fehler==='nicht_freigegeben' ? 'Deine Karte ist noch nicht freigeschaltet.' : 'Karte nicht gefunden.';
       if (navigator.vibrate) try{navigator.vibrate([80,60,80])}catch(e){}
     } else {
-      z.done = {...r, ts:Date.now()}; z.qty=1; if (navigator.vibrate) try{navigator.vibrate(60)}catch(e){}
-      try{ history.replaceState(null,'',BASE); }catch(e){}
+      z.done = {...r, ts:Date.now()}; if (navigator.vibrate) try{navigator.vibrate(60)}catch(e){}
       S.holderData.guthaben = r.guthaben;
       setTimeout(()=>{ if (S.mode==='zapf') renderZapf(); }, 116000);
     }
   }catch(e){ z.err = /selbst_abbuchen|function/i.test(e.message||'') ? 'Die Selbstbedienung ist noch nicht eingerichtet.' : 'Keine Verbindung. Bitte erneut versuchen.'; }
-  finally{ z.busy=false; renderZapf(); }
+  finally{ z.busy=false; try{ history.replaceState(null,'',BASE); }catch(e){} renderZapf(); }
 }
 async function zapfUndo(){
   const z=S.zapfState, r=z.done; if (!r || r.undone) return;
@@ -1078,7 +1077,7 @@ function renderPoster(){
     <div class="label" style="color:#555">${esc(S.config.einheit||'')}</div>
     <h1>Getränk genommen?<br>Hier scannen!</h1>
     <canvas id="posterQR" aria-label="QR-Code Selbstbedienung"></canvas>
-    <ol><li>QR-Code mit der Handy-Kamera scannen.</li><li>Anzahl wählen und auf „abbuchen“ tippen.</li><li>Fertig – der Betrag wird von deiner Getränkekarte abgebucht.</li></ol>
+    <ol><li>QR-Code mit der Handy-Kamera scannen.</li><li>Fertig – ein Getränk wird sofort von deiner Karte abgebucht.</li><li>Mehr genommen? Auf „Noch ein Getränk“ tippen.</li></ol>
     <div class="price">${eur(S.config.preis)} pro Getränk</div>
     <div class="sub" style="font-size:14px">Funktioniert auf dem Handy, auf dem du deinen persönlichen Karten-Link geöffnet hast.</div>
     <div class="stripe"></div></div>
@@ -1095,7 +1094,7 @@ async function posterPNG(){
   x.fillStyle='#000'; x.font='700 104px "Barlow Condensed", Arial Narrow, sans-serif'; x.fillText('Getränk genommen?', W/2, 310); x.fillText('Hier scannen!', W/2, 420);
   const q=document.createElement('canvas'); drawQR(q, zapfURL(), 760); x.imageSmoothingEnabled=false; x.drawImage(q,(W-760)/2,470,760,760);
   x.font='500 40px Barlow, sans-serif'; x.fillStyle='#111';
-  ['1. QR-Code mit der Handy-Kamera scannen','2. Anzahl wählen und „abbuchen“ tippen','3. Fertig – Betrag wird von der Karte abgebucht'].forEach((t,i)=>x.fillText(t, W/2, 1320+i*62));
+  ['1. QR-Code mit der Handy-Kamera scannen','2. Fertig – ein Getränk wird sofort abgebucht','3. Mehr genommen? „Noch ein Getränk“ tippen'].forEach((t,i)=>x.fillText(t, W/2, 1320+i*62));
   x.font='600 52px "IBM Plex Mono", monospace'; x.fillText(eur(S.config.preis)+' pro Getränk', W/2, 1560);
   const blob=await new Promise(r=>c.toBlob(r,'image/png')); download(blob,'Aushang-Selbstbedienung.png');
 }
@@ -1391,12 +1390,10 @@ document.addEventListener('click', async ev=>{
       if (navigator.canShare && navigator.canShare({files:[file]})) { try{ await navigator.share({files:[file], text:shareText(k)}); markSent(id); }catch(e){} } else { download(blob, file.name); markSent(id); } }
     else if (a==='sent-off') confirmDeact(id);
     else if (a==='to-admin'){ S.zapf=false; S.zapfState=null; S.wantCard=false; try{ history.replaceState(null,'',BASE); }catch(e){} decideMode(); }
-    else if (a==='zapf-open'){ S.zapfState={qty:1}; S.mode='zapf'; render(); scrollTo(0,0); }
+    else if (a==='zapf-open'){ S.zapfState={}; S.mode='zapf'; S.holderLoaded=true; render(); scrollTo(0,0); zapfGo(true); }
     else if (a==='zapf-card'){ S.zapf=false; S.zapfState=null; try{ history.replaceState(null,'',BASE); }catch(e){} S.mode='holder'; render(); loadHolder(); }
-    else if (a==='zapf-qty'){ S.zapfState.qty=+t.dataset.n; S.zapfState.err=null; renderZapf(); }
-    else if (a==='zapf-go') zapfGo();
     else if (a==='zapf-undo') zapfUndo();
-    else if (a==='zapf-again'){ S.zapfState={qty:1}; await loadHolder(); }
+    else if (a==='zapf-again'){ S.zapfState={...S.zapfState, err:null}; await zapfGo(true); }
     else if (a==='poster-print'){ document.body.classList.add('printPoster'); window.print(); setTimeout(()=>document.body.classList.remove('printPoster'),1000); }
     else if (a==='poster-png') posterPNG();
     else if (a==='el-overview') elOverview();
