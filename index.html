@@ -636,7 +636,7 @@ function renderHolder(){
         ${plain?'<span class="muted">Dein Name wird bei der nächsten Aktualisierung durch einen Decknamen ersetzt.</span>':''}${choiceHTML(d,'wechsel-klar')}</div></details>`
     : `<details class="panel"><summary>Wie soll deine Karte heißen?</summary><div style="margin-top:12px">${choiceHTML(d,'erst')}</div></details>`;
   $('#holderInfo').innerHTML = `
-    ${d.selbstbedienung && d.aktiv ? `<button class="btn primary wide" data-act="zapf-open" style="min-height:56px;font-size:18px">Getränk nehmen (−${eur(d.preis)})</button>` : ''}
+    ${d.selbstbedienung && d.aktiv && d.freigegeben!==false ? `<button class="btn primary wide" data-act="hscan" style="min-height:64px;font-size:19px;gap:10px"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3M7 12h10"/></svg>Getränk nehmen – Code am Getränkestand scannen</button>` : ''}
     <h3>Verlauf</h3>${histHTML(d.verlauf||[])}
     <p class="muted" style="margin:0;text-align:center">Zeig den QR-Code an der Getränkeausgabe. Pro Getränk werden ${eur(d.preis)} abgebucht.</p>
     ${!d.aktiv?`<div class="notice"><b>Diese Karte ist gesperrt.</b> Bitte wende dich an die Getränkekasse.</div>`:''}
@@ -1010,6 +1010,43 @@ async function setOk(code, on, btn){
   }catch(e){ fail(e,'Speichern'); if (btn) btn.disabled=false; }
 }
 
+/* ---------- Scanner in der Karte (Karteninhaber) ---------- */
+let hStream=null, hTimer=null;
+const isZapfCode = raw => { const t=String(raw||''); if (!/[?&]zapf(=|&|$)/.test(t)) return false; try{ const u=new URL(t); return u.host===location.host; }catch(e){ return false; } };
+function hScanOpen(){
+  openSheet(`${sheetHead('Code scannen')}
+    <div class="scanbox"><video id="hVideo" playsinline muted></video><div class="aim"></div></div>
+    <div id="hScanMsg" class="muted" style="text-align:center">Halte die Kamera auf den QR-Code am Getränkestand.</div>
+    <label class="btn" for="hScanFile">Kamera geht nicht? Foto vom Code machen</label><input id="hScanFile" type="file" accept="image/*" capture="environment" hidden>`, {kind:'hscan'});
+  $('#hScanFile').onchange = async ()=>{ const f=$('#hScanFile').files[0]; if(!f) return; $('#hScanMsg').textContent='Code wird gelesen …';
+    try{ const raw=await decodeFile(f); hHandle(raw, true); }catch(e){ $('#hScanMsg').textContent='Foto konnte nicht gelesen werden.'; } };
+  hScanStart();
+}
+async function hScanStart(){
+  try{ hStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment', width:{ideal:1280}, height:{ideal:1280}}, audio:false}); }
+  catch(e){ $('#hScanMsg').innerHTML='<b>Kamera nicht verfügbar.</b> Erlaube den Kamerazugriff oder nutze „Foto vom Code machen“.'; return; }
+  const v=$('#hVideo'); if (!v){ hScanStop(); return; } v.srcObject=hStream; await v.play().catch(()=>{});
+  const c=document.createElement('canvas'), ctx=c.getContext('2d',{willReadFrequently:true});
+  const det = ('BarcodeDetector' in window) ? (()=>{ try{ return new BarcodeDetector({formats:['qr_code']}); }catch(e){ return null; } })() : null;
+  const tick = async()=>{
+    if (!hStream || !$('#hVideo')) return hScanStop();
+    if (v.readyState>=2){ let raw=null;
+      try{ if (det){ const r=await det.detect(v); if (r[0]) raw=r[0].rawValue; }
+        else { const sc=Math.min(1,640/Math.max(v.videoWidth,v.videoHeight)); c.width=Math.round(v.videoWidth*sc); c.height=Math.round(v.videoHeight*sc); ctx.drawImage(v,0,0,c.width,c.height); const r=jsQR(ctx.getImageData(0,0,c.width,c.height).data,c.width,c.height,{inversionAttempts:'dontInvert'}); if (r) raw=r.data; }
+      }catch(e){}
+      if (raw && hHandle(raw, false)) return; }
+    hTimer=setTimeout(tick, 180);
+  };
+  tick();
+}
+function hScanStop(){ clearTimeout(hTimer); if (hStream){ hStream.getTracks().forEach(t=>t.stop()); hStream=null; } }
+function hHandle(raw, fromPhoto){
+  if (isZapfCode(raw)){ hScanStop(); closeSheet(); S.zapfState={}; S.mode='zapf'; S.holderLoaded=true; render(); scrollTo(0,0); zapfGo(false); return true; }
+  if (raw){ const m=$('#hScanMsg'); if (m) m.innerHTML='<b>Das ist nicht der Code vom Getränkestand.</b> Bitte den Aushang „Getränk genommen? Hier scannen!“ scannen.'; }
+  else if (fromPhoto){ const m=$('#hScanMsg'); if (m) m.textContent='Kein QR-Code erkannt. Bitte näher ran und scharf fotografieren.'; }
+  return false;
+}
+
 /* ---------- Storno (nur Admins) ---------- */
 function stornoSheet(id){
   const b=S.buch.find(x=>x.id===id); if (!b) return; const k=S.karten.find(x=>x.code===b.karte);
@@ -1031,7 +1068,7 @@ function renderZapf(){
   if (!S.holder){
     box.innerHTML = `<h2>Getränk nehmen</h2><div class="notice stack" style="gap:8px"><b>Auf diesem Handy ist noch keine Getränkekarte gespeichert.</b>
       <span>Öffne einmal den persönlichen Link deiner Karte (aus WhatsApp oder E-Mail) <b>in diesem Browser</b>. Danach bucht ein Scan des QR-Codes automatisch ab.</span>
-      <span class="muted">iPhone: Hast du deine Karte als Symbol auf dem Home-Bildschirm? Dann öffne die Karte dort und tippe auf „Getränk nehmen“.</span></div>
+      <span class="muted">iPhone: Hast du deine Karte als Symbol auf dem Home-Bildschirm? Dann öffne die Karte dort, tippe auf „Getränk nehmen – Code scannen“ und scanne diesen Aushang noch einmal.</span></div>
       ${adm}`; return;
   }
   if (!S.holderLoaded || (z.busy && !z.done)){ box.innerHTML = `<div class="panel empty">${z.busy?'Getränk wird abgebucht …':'Karte wird geladen …'}</div>`; return; }
@@ -1081,7 +1118,7 @@ function renderPoster(){
     <canvas id="posterQR" aria-label="QR-Code Selbstbedienung"></canvas>
     <ol><li>QR-Code mit der Handy-Kamera scannen.</li><li>Fertig – ein Getränk wird sofort von deiner Karte abgebucht.</li><li>Mehr genommen? Auf „Noch ein Getränk“ tippen.</li></ol>
     <div class="price">${eur(S.config.preis)} pro Getränk</div>
-    <div class="sub" style="font-size:14px">Funktioniert auf dem Handy, auf dem du deinen persönlichen Karten-Link geöffnet hast.</div>
+    <div class="sub" style="font-size:14px">Mit der Handy-Kamera oder in deiner geöffneten Getränkekarte über „Code scannen“.</div>
     <div class="stripe"></div></div>
     ${S.config.selbstbedienung?'':'<div class="notice noprint" style="margin-top:12px">Die Selbstbedienung ist noch ausgeschaltet. Schalte sie unter Mehr ein, bevor du den Aushang aufhängst.</div>'}
     <p class="muted noprint" style="text-align:center;font-size:13px">Der QR-Code führt zu: ${esc(zapfURL())}</p>`;
@@ -1103,7 +1140,7 @@ async function posterPNG(){
 
 /* ---------- Sheets ---------- */
 function openSheet(html, meta){ const pn=$('#sheetPanel'), keep=!$('#sheet').hidden && S.sheet && meta && S.sheet.kind===meta.kind && S.sheet.id===meta.id ? pn.scrollTop : 0; S.sheet=meta||{kind:'form'}; pn.innerHTML=html; $('#sheet').hidden=false; document.body.classList.add('locked'); pn.scrollTop=keep; }
-function closeSheet(){ document.body.classList.remove('locked'); $('#sheet').hidden=true; $('#sheetPanel').innerHTML=''; S.sheet=null; }
+function closeSheet(){ if (typeof hScanStop==='function') hScanStop(); document.body.classList.remove('locked'); $('#sheet').hidden=true; $('#sheetPanel').innerHTML=''; S.sheet=null; }
 const sheetHead = t => `<div class="spread"><h2>${t}</h2><button class="btn" data-act="close">Schließen</button></div>`;
 
 function entryForm(pre){
@@ -1391,6 +1428,7 @@ document.addEventListener('click', async ev=>{
     else if (a==='save-img'){ const blob=await cardImage(k), file=new File([blob],'Getraenkekarte-'+k.code+'.png',{type:'image/png'});
       if (navigator.canShare && navigator.canShare({files:[file]})) { try{ await navigator.share({files:[file], text:shareText(k)}); markSent(id); }catch(e){} } else { download(blob, file.name); markSent(id); } }
     else if (a==='sent-off') confirmDeact(id);
+    else if (a==='hscan') hScanOpen();
     else if (a==='storno') stornoSheet(id);
     else if (a==='storno-go'){ t.disabled=true; const back=t.dataset.back; await q(sb.from('buchungen').delete().eq('id',id)); toast('Abbuchung storniert – Betrag gutgeschrieben'); await loadAll(); if (back) openCard(back); else closeSheet(); }
     else if (a==='to-admin'){ S.zapf=false; S.zapfState=null; S.wantCard=false; try{ history.replaceState(null,'',BASE); }catch(e){} decideMode(); }
@@ -1479,7 +1517,7 @@ $('#loginForm').addEventListener('submit', async ev=>{
     $('#loginMsg').innerHTML = `<div class="notice">${esc(m)}</div>`;
   }finally{ btn.disabled=false; }
 });
-document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState==='visible'){ if (S.mode==='admin') loadAll(); else if (S.mode==='holder') loadHolder(); } else camStop(); });
+document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState==='visible'){ if (S.mode==='admin') loadAll(); else if (S.mode==='holder') loadHolder(); } else { camStop(); if (hStream) closeSheet(); } });
 
 $('#lookLogo').addEventListener('change', async()=>{
   const f=$('#lookLogo').files[0]; $('#lookLogo').value=''; if(!f) return;
