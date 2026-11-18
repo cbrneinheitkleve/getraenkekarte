@@ -8,7 +8,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Getränkekarte">
 <title>CBRN Getränkekasse</title>
-<link rel="manifest" href="manifest.webmanifest">
+<script>(function(){ /* Karten-Links: eigener Name "Getränkekarte" beim Hinzufügen zum Startbildschirm */
+  var karte=/[?&]k=/.test(location.search);
+  var l=document.createElement('link'); l.rel='manifest'; l.href=karte?'manifest-karte.webmanifest':'manifest.webmanifest'; document.head.appendChild(l);
+  var m=document.querySelector('meta[name="apple-mobile-web-app-title"]'); if(m) m.content=karte?'Getränkekarte':'Getränkekasse';
+  if(karte) document.title='Getränkekarte';
+})();</script>
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
@@ -658,10 +663,11 @@ function renderHolder(){
     ${low?`<div class="notice">Dein Guthaben reicht für kein Getränk mehr. Lade die Karte an der Kasse auf.</div>`:''}
     <button class="btn" data-act="holder-refresh">Guthaben aktualisieren</button>
     <details class="panel"><summary>Karte aufs Handy legen</summary>
-      <div class="stack" style="margin-top:10px;gap:6px">
-        <span><b>iPhone (Safari):</b> unten auf das Teilen-Symbol tippen, dann „Zum Home-Bildschirm“.</span>
-        <span><b>Android (Chrome):</b> oben rechts auf ⋮ tippen, dann „Zum Startbildschirm hinzufügen“.</span>
-        <span class="muted">Danach liegt die Karte als Symbol auf dem Handy und öffnet sich mit einem Tipp.</span></div></details>
+      <div class="stack" style="margin-top:10px;gap:8px">
+        <span><b>iPhone (Safari):</b> unten auf das Teilen-Symbol tippen, dann „Zum Home-Bildschirm“. Oben steht der Name „Getränkekarte“ – dort antippen und nach Wunsch ändern, z. B. „Meine Getränke“, dann „Hinzufügen“.</span>
+        <span><b>Android (Chrome):</b> oben rechts auf ⋮ tippen, dann „Zum Startbildschirm hinzufügen“. Erscheint die Wahl, „Verknüpfung erstellen“ nehmen – dann lässt sich der Name im nächsten Fenster ändern.</span>
+        <span><b>Computer (Chrome/Edge):</b> ⋮ → „Streamen, speichern und teilen“ → „Verknüpfung erstellen“, Namen eintragen. Eine Verknüpfung auf dem Desktop lässt sich auch später umbenennen: Rechtsklick → „Umbenennen“ (Mac: Name anklicken und Enter).</span>
+        <span class="muted">Danach liegt die Karte als Symbol auf dem Gerät und öffnet sich mit einem Tipp.</span></div></details>
     ${namePanel}
     ${tail}`;
   bindChoice();
