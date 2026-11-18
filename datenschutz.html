@@ -53,19 +53,20 @@ footer{padding-block:8px 24px;text-align:center;font-size:12px;color:var(--muted
   <h1>Datenschutz &amp; Impressum</h1>
   <p class="lead">Getränkekasse und digitale Getränkekarten der Sondereinheit CBRN, Freiwillige Feuerwehr Kleve. Stand: November 2026.</p>
 
-  <div class="note"><b>Entwurf.</b> Gelb markierte Stellen sind noch auszufüllen bzw. vom Verantwortlichen (in der Regel die Stadt Kleve als Trägerin der Feuerwehr) und dessen Datenschutzbeauftragten zu prüfen.</div>
+  <div class="note"><b>Entwurf.</b> Gelb markierte Stellen sind noch von der Einheit festzulegen bzw. zu ergänzen.</div>
 
   <h2>1. Verantwortlicher</h2>
   <div class="box">
+    Getränkekasse (Kameradschaftskasse) der Sondereinheit CBRN<br>
     Freiwillige Feuerwehr Kleve<br>
-    Brabanter Straße 56<br>
-    47533 Kleve<br>
-    E-Mail: <span class="ph">Kontakt-E-Mail</span>
+    c/o Brabanter Straße 56, 47533 Kleve<br>
+    vertreten durch: Simone Loosen<br>
+    E-Mail: cbrn.einheit@web.de
   </div>
-  <p>Ansprechpartnerin für die Getränkekasse: Simone Loosen, Sondereinheit CBRN.</p>
+  <p>Die Getränkekasse wird von den Mitgliedern der Sondereinheit CBRN in eigener Verantwortung geführt. Sie ist keine Einrichtung der Stadt Kleve.</p>
 
   <h2>2. Datenschutzbeauftragter</h2>
-  <div class="box"><span class="ph">Name / Funktion, Anschrift, E-Mail des Datenschutzbeauftragten</span></div>
+  <p>Ein Datenschutzbeauftragter ist nicht benannt, da dies für die Getränkekasse gesetzlich nicht erforderlich ist (weniger als 20 Personen sind ständig mit der Verarbeitung befasst, § 38 BDSG). Fragen zum Datenschutz richten Sie bitte an die oben genannte Stelle.</p>
 
   <h2>3. Wofür diese App da ist</h2>
   <p>Die App dient ausschließlich der Verwaltung der Getränkekasse der Sondereinheit CBRN: Führen eines Kassenbuchs, Ausgabe und Abrechnung von digitalen Getränkekarten mit Guthaben sowie Erstellen von Kassenberichten. Es gibt keine Werbung, kein Tracking und keine Auswertung des Nutzungsverhaltens.</p>
@@ -76,6 +77,7 @@ footer{padding-block:8px 24px;text-align:center;font-size:12px;color:var(--muted
     <li>Deckname der Karte (ein chemisches Element), Kartencode und ein geheimer Zugangsschlüssel, der im persönlichen Link enthalten ist</li>
     <li>Guthaben, Aufladungen und Abbuchungen jeweils mit Zeitpunkt und Betrag, Zahlungsstatus von Aufladungen</li>
     <li>Status der Karte (aktiv oder gesperrt) und ob bzw. wann die Karte verschickt wurde</li>
+    <li>Bei Selbstbedienung am Getränkestand: der Vermerk „Selbstbedienung“ an der jeweiligen Abbuchung</li>
     <li>Der echte Name wird <b>nur verschlüsselt</b> gespeichert (AES-256-GCM). Der Schlüssel entsteht aus einem Passwort, das nur die Admins kennen, und wird nicht an den Datenbank-Anbieter übertragen. Ohne dieses Passwort ist der Name für niemanden lesbar, auch nicht für den Anbieter.</li>
     <li><b>Eigene Entscheidung:</b> Beim ersten Öffnen ihres persönlichen Links wählt jede Person selbst, ob ihr Klarname auf der Karte stehen darf (Einwilligung) oder ob sie einen Decknamen möchte. Erst nach dieser Auswahl wird die Karte freigeschaltet. Gespeichert werden die Auswahl und ihr Zeitpunkt als Nachweis. Bei Einwilligung wird der Name unverschlüsselt gespeichert und ist für Admins sowie auf der eigenen Karte sichtbar.</li>
   </ul>
@@ -94,6 +96,10 @@ footer{padding-block:8px 24px;text-align:center;font-size:12px;color:var(--muted
     <li>Beim Aufruf der App werden technisch notwendig die IP-Adresse, Zeitpunkt, aufgerufene Adresse und Browserangaben an die unten genannten Anbieter übermittelt und dort kurzzeitig protokolliert.</li>
     <li>Schriftarten und Programmbibliotheken werden von der App selbst ausgeliefert. Es werden <b>keine</b> Inhalte von Google oder anderen Drittanbietern nachgeladen.</li>
   </ul>
+  <h3>Kamera</h3>
+  <ul>
+    <li>Zum Scannen von QR-Codes (an der Kasse bzw. am Getränkestand) nutzt die App auf Wunsch die Kamera des eigenen Geräts. Die Bilder werden nur auf dem Gerät ausgewertet und weder gespeichert noch übertragen. Übermittelt wird nur das Ergebnis, also der gescannte Code.</li>
+  </ul>
   <h3>Speicher auf dem eigenen Gerät</h3>
   <ul>
     <li>Die App nutzt den Speicher des Browsers (localStorage), keine Werbe- oder Analyse-Cookies.</li>
@@ -102,7 +108,11 @@ footer{padding-block:8px 24px;text-align:center;font-size:12px;color:var(--muted
   </ul>
 
   <h2>5. Rechtsgrundlage</h2>
-  <p><span class="ph">Vom Verantwortlichen zu prüfen.</span> Für Klarnamen auf der Karte: Einwilligung nach Art. 6 Abs. 1 lit. a DSGVO. Im Übrigen kommen insbesondere Art. 6 Abs. 1 lit. b DSGVO (Durchführung der Vereinbarung über die Getränkekarte mit Guthaben) und Art. 6 Abs. 1 lit. c DSGVO (Aufbewahrung von Kassenbelegen). Für die technisch notwendigen Daten beim Aufruf kommt Art. 6 Abs. 1 lit. f DSGVO bzw. lit. e in Verbindung mit dem DSG NRW in Betracht.</p>
+  <ul>
+    <li>Klarname auf der Karte: Einwilligung (Art. 6 Abs. 1 lit. a DSGVO)</li>
+    <li>Getränkekarte mit Guthaben, Aufladungen und Abbuchungen: Durchführung der Vereinbarung über die Getränkekarte (Art. 6 Abs. 1 lit. b DSGVO)</li>
+    <li>Kassenbuch, Belege, Admin-Konten und technisch notwendige Daten: berechtigtes Interesse an einer ordnungsgemäßen, nachvollziehbaren und sicheren Kassenführung (Art. 6 Abs. 1 lit. f DSGVO)</li>
+  </ul>
 
   <h3>Einwilligung und Widerruf</h3>
   <p>Die Einwilligung in die Verwendung des Klarnamens ist freiwillig. Wer nicht zustimmt, hat keinen Nachteil und erhält eine Karte mit Decknamen. Die Einwilligung kann jederzeit ohne Angabe von Gründen widerrufen werden, direkt auf der eigenen Karten-Seite unter „Name auf der Karte“ oder formlos bei der Getränkekasse. Die Karte wird dann auf einen Decknamen umgestellt und der Name verschlüsselt. Guthaben und Link bleiben erhalten. Die Rechtmäßigkeit der bis zum Widerruf erfolgten Verarbeitung bleibt unberührt.</p>
@@ -117,22 +127,22 @@ footer{padding-block:8px 24px;text-align:center;font-size:12px;color:var(--muted
   <h2>7. Speicherdauer</h2>
   <ul>
     <li>Getränkekarten mit ihrem Verlauf: bis die Karte von einem Admin gelöscht wird, z. B. nach Ausscheiden aus der Einheit oder auf Wunsch. <span class="ph">Ggf. feste Frist ergänzen.</span></li>
-    <li>Kassenbuch und Belege: <span class="ph">Aufbewahrungsfrist nach den für die Kasse geltenden Vorgaben, z. B. 10 Jahre</span></li>
+    <li>Kassenbuch und Belege: bis zur Kassenprüfung und Entlastung, danach noch <span class="ph">z. B. 3 Jahre</span> zur Nachvollziehbarkeit</li>
     <li>Admin-Konten: bis zur Entfernung als Admin.</li>
     <li>Technische Protokolle bei den Dienstleistern: nach deren Vorgaben, in der Regel wenige Tage bis Wochen.</li>
   </ul>
 
   <h2>8. Ihre Rechte</h2>
-  <p>Sie haben das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21). Wenden Sie sich dazu an den Verantwortlichen oder an die Getränkekasse der Einheit.</p>
+  <p>Sie haben das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21). Wenden Sie sich dazu an die oben genannte Stelle.</p>
   <p>Sie können sich außerdem bei einer Datenschutz-Aufsichtsbehörde beschweren, in Nordrhein-Westfalen bei der Landesbeauftragten für Datenschutz und Informationsfreiheit NRW, Kavalleriestraße 2–4, 40213 Düsseldorf.</p>
   <p>Es findet keine automatisierte Entscheidungsfindung und kein Profiling statt.</p>
 
   <h2 id="impressum">Impressum</h2>
   <div class="box">
-    Freiwillige Feuerwehr Kleve<br>
-    Brabanter Straße 56, 47533 Kleve<br>
-    E-Mail: <span class="ph">Kontakt-E-Mail</span><br>
-    Vertreten durch: <span class="ph">z. B. Leitung der Feuerwehr</span>
+    Getränkekasse der Sondereinheit CBRN, Freiwillige Feuerwehr Kleve<br>
+    c/o Brabanter Straße 56, 47533 Kleve<br>
+    Verantwortlich: Simone Loosen<br>
+    E-Mail: cbrn.einheit@web.de
   </div>
   <p>Konzeption, Softwareentwicklung &amp; Gestaltung der App: Simone Loosen.</p>
   <p>Die App ist ein internes Werkzeug der Einheit und nicht für die Öffentlichkeit bestimmt.</p>
