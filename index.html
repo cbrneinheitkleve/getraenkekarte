@@ -616,12 +616,24 @@ function openPay(){ const m={}; for (const b of S.buch) if (b.typ==='auf' && b.b
 function kasseStats(){ let ein=0,aus=0,anf=0; for (const e of S.kasse){ if(e.typ==='ein'){ if (e.kategorie===ANF) anf+=e.betrag; else ein+=e.betrag; } else aus+=e.betrag; } return {ein,aus,anf,saldo:anf+ein-aus}; }
 
 /* ---------- QR & Karte ---------- */
-function drawQR(canvas, text, px){
-  const qr = qrcode(0,'M'); qr.addData(text); qr.make();
+function drawQR(canvas, text, px, level){
+  const qr = qrcode(0, level||'M'); qr.addData(text); qr.make();
   const n = qr.getModuleCount(), quiet=2, cell=Math.max(2,Math.floor(px/(n+quiet*2))), size=cell*(n+quiet*2);
   canvas.width=size; canvas.height=size; const ctx=canvas.getContext('2d');
   ctx.fillStyle='#fff'; ctx.fillRect(0,0,size,size); ctx.fillStyle='#000';
   for (let r=0;r<n;r++) for (let c=0;c<n;c++) if (qr.isDark(r,c)) ctx.fillRect((c+quiet)*cell,(r+quiet)*cell,cell,cell);
+  return {n, quiet, cell, size};
+}
+/* QR für den Getränkestand: höchste Fehlerkorrektur (H) + Abzeichen in der Mitte (ca. 22 % der Breite) */
+let qrLogoImg=null;
+function loadQrLogo(){ if (qrLogoImg) return qrLogoImg; qrLogoImg = new Promise(res=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>res(null); i.src='qr-logo.png'; }); return qrLogoImg; }
+async function drawZapfQR(canvas, px, text){
+  const g = drawQR(canvas, text || zapfURL(), px, 'H'), ctx=canvas.getContext('2d');
+  const img = await loadQrLogo(); if (!img) return canvas;
+  const inner = g.n*g.cell, d = Math.round(inner*0.22), cx = canvas.width/2, cy = canvas.height/2;
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(cx, cy, d/2 + g.cell*1.2, 0, Math.PI*2); ctx.fill();
+  ctx.imageSmoothingEnabled=true; ctx.drawImage(img, cx-d/2, cy-d/2, d, d);
+  return canvas;
 }
 function cardHTML(code, name, bal, aktiv=true, einheit, th){
   th = th || curTheme(); const unit = esc(einheit||S.config.einheit);
@@ -1222,7 +1234,7 @@ function zapfQrSheet(){
     <div class="poster" style="padding:20px 16px;gap:10px"><div class="stripe"></div><h1 style="font-size:34px">Getränk genommen?<br>Hier scannen!</h1>
       <canvas id="zapfQR" aria-label="QR-Code Selbstbedienung"></canvas><div class="price">${eur(S.config.preis)} pro Getränk</div><div class="stripe"></div></div>
     <div class="row"><button class="btn" data-act="zapf-qr-aushang">Aushang drucken / als Bild</button></div>`, {kind:'zapfqr'});
-  drawQR($('#zapfQR'), zapfURL(), 720);
+  drawZapfQR($('#zapfQR'), 720);
   if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l=>{ S.wake=l; }).catch(()=>{});
 }
 
@@ -1326,7 +1338,7 @@ function renderPoster(){
     <div class="stripe"></div></div>
     ${S.config.selbstbedienung?'':'<div class="notice noprint" style="margin-top:12px">Die Selbstbedienung ist noch ausgeschaltet. Schalte sie unter Mehr ein, bevor du den Aushang aufhängst.</div>'}
     <p class="muted noprint" style="text-align:center;font-size:13px">Der QR-Code führt zu: ${esc(zapfURL())}</p>`;
-  drawQR($('#posterQR'), zapfURL(), 720);
+  drawZapfQR($('#posterQR'), 720);
 }
 async function posterPNG(){
   const W=1240,H=1754,c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
@@ -1335,7 +1347,7 @@ async function posterPNG(){
   stripe(80); stripe(H-116);
   x.textAlign='center'; x.fillStyle='#555'; x.font='600 34px Barlow, sans-serif'; x.fillText((S.config.einheit||'').toUpperCase(), W/2, 190);
   x.fillStyle='#000'; x.font='700 104px "Barlow Condensed", Arial Narrow, sans-serif'; x.fillText('Getränk genommen?', W/2, 310); x.fillText('Hier scannen!', W/2, 420);
-  const q=document.createElement('canvas'); drawQR(q, zapfURL(), 760); x.imageSmoothingEnabled=false; x.drawImage(q,(W-760)/2,470,760,760);
+  const q=document.createElement('canvas'); await drawZapfQR(q, 760); x.imageSmoothingEnabled=false; x.drawImage(q,(W-760)/2,470,760,760);
   x.font='500 40px Barlow, sans-serif'; x.fillStyle='#111';
   ['1. QR-Code mit der Handy-Kamera scannen','2. Fertig – ein Getränk wird sofort abgebucht','3. Mehr genommen? „Noch ein Getränk“ tippen'].forEach((t,i)=>x.fillText(t, W/2, 1320+i*62));
   x.font='600 52px "IBM Plex Mono", monospace'; x.fillText(eur(S.config.preis)+' pro Getränk', W/2, 1560);
