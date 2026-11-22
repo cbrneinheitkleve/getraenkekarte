@@ -1787,7 +1787,30 @@ $('#newPwForm').addEventListener('submit', async ev=>{
 });
 sb.auth.onAuthStateChange(ev=>{ if (ev==='PASSWORD_RECOVERY'){ S.recovery=true; S.mode='newpw'; render(); } });
 
+/* ---------- Zurück-Taste (Android): nicht sofort die App schließen ---------- */
+let backT=0;
+function backGuard(){ try{ history.pushState({app:'guard'}, ''); }catch(e){} }
+function backHandled(){
+  if (!$('#sheet').hidden){ closeSheet(); if (S.mode==='admin') render(); return true; }
+  if (typeof stream!=='undefined' && stream){ camStop(); return true; }
+  if (S.mode==='admin'){
+    const home = S.kasseAus ? 'karten' : 'kasse';
+    if (['bericht','aushang','protokoll'].includes(S.tab)){ S.tab='mehr'; render(); scrollTo(0,0); return true; }
+    if (S.tab!==home){ S.tab=home; render(); scrollTo(0,0); return true; }
+  }
+  if (S.mode==='zapf' && S.holder){ S.zapf=false; S.zapfState=null; S.mode='holder'; render(); loadHolder(); return true; }
+  if (S.mode==='holder' && S.isAdmin){ S.wantCard=false; decideMode(); return true; }
+  if (S.mode==='login' && S.forceLogin && S.holder){ S.forceLogin=false; decideMode(); return true; }
+  return false;
+}
+window.addEventListener('popstate', ()=>{
+  if (backHandled()){ backGuard(); return; }
+  if (Date.now()-backT < 2000){ history.back(); return; }   // zweimal kurz hintereinander: App verlassen
+  backT = Date.now(); toast('Zum Beenden nochmal zurück'); backGuard();
+});
+
 (function boot(){
+  backGuard();
   if (/type=recovery/.test(location.hash)) S.recovery=true;
   const p=new URLSearchParams(location.search), k=(p.get('k')||'').toUpperCase(), t=p.get('t')||'';
   if (p.has('zapf')) S.zapf=true;
