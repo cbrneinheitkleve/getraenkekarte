@@ -582,7 +582,7 @@ const zChip = z => z==='paypal' ? ' <span class="chip pp">PayPal</span>' : '';
 const zName = z => z==='paypal' ? 'PayPal' : 'Bar';
 document.addEventListener('click', ev=>{ const b=ev.target.closest('.zseg button'); if (!b) return; b.parentElement.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x===b)); });
 function histHTML(list, adm){
-  return list.length ? `<div class="list">${list.map(b=>`<${adm&&b.typ==='ab'&&b.id?`button class="item" data-act="storno" data-id="${b.id}" title="Tippen zum Stornieren"`:'div class="item"'}><span class="date">${fmtTs(b.created_at).replace(', ','<br>')}</span><span class="t"><b>${b.typ==='auf'?'Aufgeladen':'Getränk'+(b.anzahl>1?' ×'+b.anzahl:'')}</b>${b.selbst||b.von==='Selbstbedienung'?' <span class="chip">selbst</span>':''}${b.typ==='auf'?zChip(b.zahlart):''}</span><span class="amt ${b.typ==='auf'?'pos':'neg'}">${b.typ==='auf'?'+':'−'}${eur(b.betrag)}</span></${adm&&b.typ==='ab'&&b.id?'button':'div'}>`).join('')}</div>` : '<div class="list"><div class="empty">Noch keine Buchungen.</div></div>';
+  return list.length ? `<div class="list">${list.map(b=>`<${adm&&b.id?`button class="item" data-act="storno" data-id="${b.id}" title="Tippen zum Stornieren bzw. Löschen"`:'div class="item"'}><span class="date">${fmtTs(b.created_at).replace(', ','<br>')}</span><span class="t"><b>${b.typ==='auf'?'Aufgeladen':'Getränk'+(b.anzahl>1?' ×'+b.anzahl:'')}</b>${b.selbst||b.von==='Selbstbedienung'?' <span class="chip">selbst</span>':''}${b.typ==='auf'?zChip(b.zahlart):''}</span><span class="amt ${b.typ==='auf'?'pos':'neg'}">${b.typ==='auf'?'+':'−'}${eur(b.betrag)}</span></${adm&&b.id?'button':'div'}>`).join('')}</div>` : '<div class="list"><div class="empty">Noch keine Buchungen.</div></div>';
 }
 function setIcon(th){
   th = th || themeOf(null);
@@ -1121,14 +1121,37 @@ async function heartbeat(){
 }
 
 /* ---------- Storno (nur Admins) ---------- */
+// passende Einnahme im Kassenbuch zu einer Aufladung: eindeutige Zuordnung je Karte
+// (gleicher Betrag, gleiche Zahlungsart, Einnahme nicht vor der Aufladung, zeitlich nächste zuerst)
+function kasseZuAuf(b){
+  const z = x => x || 'bar', ts = x => new Date(x.created_at).getTime();
+  const A = S.buch.filter(x=>x.karte===b.karte && x.typ==='auf' && x.bezahlt!==false);
+  const K = S.kasse.filter(e=>e.karte===b.karte && e.typ==='ein' && e.kategorie==='Getränkekarten-Verkauf');
+  const pairs=[];
+  for (const x of A) for (const e of K) if (e.betrag===x.betrag && z(e.zahlart)===z(x.zahlart) && ts(e) >= ts(x)-60000) pairs.push([Math.abs(ts(e)-ts(x)), x.id, e]);
+  pairs.sort((p,q)=>p[0]-q[0]);
+  const usedA=new Set(), usedK=new Set();
+  for (const [,aid,e] of pairs){ if (usedA.has(aid) || usedK.has(e.id)) continue; usedA.add(aid); usedK.add(e.id); if (aid===b.id) return e; }
+  return null;
+}
 function stornoSheet(id){
   const b=S.buch.find(x=>x.id===id); if (!b) return; const k=S.karten.find(x=>x.code===b.karte);
   const back = S.sheet && S.sheet.kind==='karte' ? S.sheet.id : null;
-  openSheet(`${sheetHead('Abbuchung stornieren')}
-    <div class="notice stack" style="gap:6px"><b>${b.anzahl>1?b.anzahl+' Getränke':'Getränk'} über ${eur(b.betrag)} stornieren?</b>
-      <span>Karte: ${k?nameHTML(k):esc(b.karte)} · ${fmtTs(b.created_at)}${b.von==='Selbstbedienung'?' · Selbstbedienung':''}</span>
+  const kopf = `<span>Karte: ${k?nameHTML(k):esc(b.karte)} · ${fmtTs(b.created_at)}${b.von==='Selbstbedienung'?' · Selbstbedienung':''}</span>`;
+  let html;
+  if (b.typ==='auf'){
+    const bal=balances()[b.karte]||0, rest=bal-b.betrag, ke=kasseZuAuf(b);
+    html = `<div class="notice stack" style="gap:6px"><b>Aufladung über ${eur(b.betrag)} löschen?</b>${kopf}
+      <span>${b.bezahlt===false?'Die Zahlung war noch offen. ':`Bezahlt ${zName(b.zahlart)}. `}Das Guthaben der Karte sinkt um ${eur(b.betrag)} auf ${eur(rest)}.</span>
+      ${rest<0?`<b style="color:var(--neg)">Achtung: Das Guthaben wird dadurch negativ, weil davon schon Getränke abgebucht wurden.</b>`:''}</div>
+      ${ke?`<label class="check"><input type="checkbox" id="stKasse" checked><span>Auch die Einnahme im Kassenbuch löschen („${esc(ke.text||ke.kategorie)}“, ${eur(ke.betrag)}, ${new Date(ke.datum).toLocaleDateString('de-DE')})</span></label>`:'<span class="muted" style="font-size:14px">Im Kassenbuch wurde dazu keine passende Einnahme gefunden.</span>'}
+      <div class="row"><button class="btn danger" data-act="storno-go" data-id="${id}" data-back="${back||''}" data-kasse="${ke?ke.id:''}">Ja, löschen</button><button class="btn" data-act="${back?'card':'close'}" data-id="${back||''}">Abbrechen</button></div>`;
+  } else {
+    html = `<div class="notice stack" style="gap:6px"><b>${b.anzahl>1?b.anzahl+' Getränke':'Getränk'} über ${eur(b.betrag)} stornieren?</b>${kopf}
       <span>Der Betrag wird der Karte wieder gutgeschrieben. Die Abbuchung wird gelöscht.</span></div>
-    <div class="row"><button class="btn danger" data-act="storno-go" data-id="${id}" data-back="${back||''}">Ja, stornieren</button><button class="btn" data-act="${back?'card':'close'}" data-id="${back||''}">Abbrechen</button></div>`, {kind:'storno', id});
+      <div class="row"><button class="btn danger" data-act="storno-go" data-id="${id}" data-back="${back||''}">Ja, stornieren</button><button class="btn" data-act="${back?'card':'close'}" data-id="${back||''}">Abbrechen</button></div>`;
+  }
+  openSheet(`${sheetHead(b.typ==='auf'?'Zahlung löschen':'Abbuchung stornieren')}${html}`, {kind:'storno', id});
 }
 
 /* ---------- Selbstbedienung ---------- */
@@ -1368,7 +1391,7 @@ function openCard(code){
     ${openPay()[code] ? `<div class="notice stack" style="gap:8px"><b>Noch nicht bezahlt: ${eur(openPay()[code])}</b><span>Sobald das Geld da ist, hier nachbuchen. Es wird dann als Einnahme ins Kassenbuch eingetragen.</span><button class="btn primary" data-act="pay-open" data-id="${code}">Zahlung nachbuchen</button></div>` : ''}
     ${k.aktiv && !hist.length ? `<div class="notice">Diese Karte hat noch kein Guthaben. Über „+ Aufladen“ kannst du ein Restguthaben von einer alten Karte übernehmen oder neu aufladen.</div>` : ''}
     <div class="row" id="topupRow">${k.aktiv?`<button class="btn amber" data-act="topup" data-id="${code}">+ Aufladen</button><button class="btn danger" data-act="deact" data-id="${code}">Inaktivieren</button>`:`<button class="btn" data-act="react" data-id="${code}">Wieder aktivieren</button>`}</div>
-    <h3>Verlauf</h3>${hist.some(b=>b.typ==='ab')?'<span class="muted" style="font-size:14px">Falsche Abbuchung? Antippen zum Stornieren.</span>':''}${histHTML(hist, true)}
+    <h3>Verlauf</h3>${hist.length?'<span class="muted" style="font-size:14px">Falsche Buchung? Antippen zum Stornieren bzw. Löschen.</span>':''}${histHTML(hist, true)}
     <div class="panel stack" style="margin-top:8px"><h3>Karte löschen</h3>
       <span class="muted">Die Karte und ihr Verlauf werden endgültig entfernt, der Link funktioniert dann nicht mehr. Einnahmen im Kassenbuch bleiben erhalten.${bal>0?` <b>Achtung: Auf der Karte sind noch ${eur(bal)} Guthaben.</b>`:''}${openPay()[code]?` <b>Achtung: ${eur(openPay()[code])} sind noch nicht bezahlt.</b>`:''}</span>
       ${(()=>{ const ks=S.kasse.filter(e=>e.karte===code), sum=ks.reduce((a,e)=>a+(e.typ==='ein'?e.betrag:-e.betrag),0);
@@ -1512,7 +1535,10 @@ document.addEventListener('click', async ev=>{
     else if (a==='my-card'){ closeSheet(); camStop(); S.wantCard=true; S.mode='holder'; S.holderLoaded=false; await loadHolder(); scrollTo(0,0); }
     else if (a==='hscan') hScanOpen();
     else if (a==='storno') stornoSheet(id);
-    else if (a==='storno-go'){ t.disabled=true; const back=t.dataset.back; await q(sb.from('buchungen').delete().eq('id',id)); toast('Abbuchung storniert – Betrag gutgeschrieben'); await loadAll(); if (back) openCard(back); else closeSheet(); }
+    else if (a==='storno-go'){ t.disabled=true; const back=t.dataset.back, b=S.buch.find(x=>x.id===id), kid=t.dataset.kasse, mitKasse=kid && $('#stKasse') && $('#stKasse').checked;
+      await q(sb.from('buchungen').delete().eq('id',id));
+      if (mitKasse){ const ke=S.kasse.find(e=>e.id===kid); await q(sb.from('kasse').delete().eq('id',kid)); if (ke && ke.beleg) sb.storage.from('belege').remove([ke.beleg]); }
+      toast(b && b.typ==='auf' ? 'Zahlung gelöscht'+(mitKasse?' – auch im Kassenbuch':'') : 'Abbuchung storniert – Betrag gutgeschrieben'); await loadAll(); if (back) openCard(back); else closeSheet(); }
     else if (a==='to-admin'){ S.zapf=false; S.zapfState=null; S.wantCard=false; try{ history.replaceState(null,'',BASE); }catch(e){} decideMode(); }
     else if (a==='zapf-open'){ S.zapfState={}; S.mode='zapf'; S.holderLoaded=true; render(); scrollTo(0,0); zapfGo(true); }
     else if (a==='zapf-card'){ S.zapf=false; S.zapfState=null; try{ history.replaceState(null,'',BASE); }catch(e){} S.mode='holder'; render(); loadHolder(); }
