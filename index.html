@@ -228,6 +228,9 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
 .zapf .done .ok{width:72px;height:72px;border-radius:50%;background:var(--pos);color:#fff;display:grid;place-items:center}
 .zapf .done .ok svg{width:42px;height:42px}
 .zapf .done .big{font-family:var(--f-mono);font-size:32px;font-weight:600}
+.grund{display:flex;flex-direction:column;gap:6px}
+.grund .chips button{min-height:32px;padding:4px 10px;font-size:14px}
+.plog .item{grid-template-columns:64px 1fr auto}
 .zseg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .zseg button{border:0;background:var(--bg);padding:10px;font-weight:600;cursor:pointer;min-height:44px}
 .zseg button[aria-pressed="true"]{background:var(--primary);color:var(--on-primary)}
@@ -354,6 +357,14 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
     <div id="berichtOut"></div>
   </section>
 
+  <!-- Protokoll -->
+  <section class="view" id="v-protokoll" hidden>
+    <div class="spread"><h2>Löschprotokoll</h2><button class="btn" data-tab="mehr">Zurück</button></div>
+    <p class="muted" style="margin:0">Jede Löschung wird von der Datenbank automatisch festgehalten. Einträge können nicht geändert oder gelöscht werden.</p>
+    <div class="row"><button class="btn" data-act="plog-reload">Aktualisieren</button><button class="btn" data-act="csv-protokoll">Als CSV exportieren</button></div>
+    <div id="plogOut"></div>
+  </section>
+
   <!-- Mehr -->
   <section class="view" id="v-zapf" hidden><div class="zapf" id="zapfBox"></div></section>
 
@@ -401,6 +412,11 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
       <h3>Bericht</h3>
       <p class="muted" style="margin:0">Kassenbericht für einen Monat, ein Jahr oder einen freien Zeitraum, mit Anfangs- und Endbestand, Einnahmen und Ausgaben nach Kategorie und allen Buchungen. Zum Ansehen, Drucken oder als PDF.</p>
       <button class="btn primary" data-tab="bericht">Bericht öffnen</button>
+    </div>
+    <div class="panel stack">
+      <h3>Löschprotokoll</h3>
+      <p class="muted" style="margin:0">Wer hat wann was gelöscht oder storniert – mit Grund.</p>
+      <button class="btn" data-tab="protokoll">Protokoll öffnen</button>
     </div>
     <div class="panel stack">
       <h3>Export</h3>
@@ -550,7 +566,7 @@ function applyBrand(){
 
 let toastT;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2800); }
-function fail(e, what){ console.warn(e); if (/zahlart/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-zahlart.sql ausführen.'); if (/freigegeben|wahl|karte_entscheidung/.test(e&&e.message||'') && /column|schema|function/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-entscheidung.sql ausführen.'); if (/einwilligung/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-einwilligung.sql ausführen.'); if (/name_enc|krypto/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-pseudonyme.sql ausführen.'); if (/bezahlt/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-zahlungen.sql ausführen.'); toast((what||'Speichern')+' fehlgeschlagen' + (e && e.message ? ': '+e.message : '')); }
+function fail(e, what){ console.warn(e); if (/loeschen|protokoll/.test(e&&e.message||'') && /function|schema|relation|exist/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-protokoll.sql ausführen.'); if (/permission denied/i.test(e&&e.message||'')) return toast('Löschen ist gesperrt – bitte die neue App-Version laden.'); if (/Löschgrund/.test(e&&e.message||'')) return toast('Bitte einen Löschgrund angeben.'); if (/zahlart/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-zahlart.sql ausführen.'); if (/freigegeben|wahl|karte_entscheidung/.test(e&&e.message||'') && /column|schema|function/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-entscheidung.sql ausführen.'); if (/einwilligung/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-einwilligung.sql ausführen.'); if (/name_enc|krypto/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-pseudonyme.sql ausführen.'); if (/bezahlt/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-zahlungen.sql ausführen.'); toast((what||'Speichern')+' fehlgeschlagen' + (e && e.message ? ': '+e.message : '')); }
 async function q(p){ const {data, error} = await p; if (error) throw error; return data; }
 
 /* ---------- Berechnungen ---------- */
@@ -576,6 +592,17 @@ function cardHTML(code, name, bal, aktiv=true, einheit, th){
     <div><div class="sub" style="text-align:right">${aktiv?'Guthaben':'Deaktiviert'}</div><div class="bal">${bal==null?'–':eur(bal)}</div></div></div></div>`;
 }
 function paintQRs(root){ root.querySelectorAll('canvas[data-qr]').forEach(c=>drawQR(c, qrText(c.dataset.qr), 520)); }
+const GRUENDE=['Test','Fehlbuchung','Doppelt gebucht','Auf Wunsch der Person','Ausgeschieden'];
+const grundField = (id, vor='') => `<div class="grund"><label class="label" for="${id}">Löschgrund (Pflicht)</label>
+  <div class="chips">${GRUENDE.map(g=>`<button type="button" data-grund="${g}" data-for="${id}" aria-pressed="false">${g}</button>`).join('')}</div>
+  <input id="${id}" class="inp" maxlength="300" placeholder="z. B. Test, Fehlbuchung …" value="${esc(vor)}"></div>`;
+const grundOf = id => { const el=$('#'+id); const v=el?el.value.trim():''; if (!v){ toast('Bitte einen Löschgrund angeben.'); if (el) el.focus(); } return v; };
+document.addEventListener('click', ev=>{ const b=ev.target.closest('[data-grund]'); if (!b) return; const i=$('#'+b.dataset.for); if (i){ i.value=b.dataset.grund; } b.parentElement.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x===b)); });
+async function loeschen(bereich, id, grund){
+  const r = await q(sb.rpc('loeschen',{p_bereich:bereich, p_id:String(id), p_grund:grund}));
+  if (r && r.belege && r.belege.length) { try{ await sb.storage.from('belege').remove(r.belege); }catch(e){} }
+  return r;
+}
 const zahlSeg = (id, sel='bar') => `<div class="zseg" role="group" aria-label="Zahlungsart" id="${id}"><button type="button" data-z="bar" aria-pressed="${sel==='bar'}">Bar</button><button type="button" data-z="paypal" aria-pressed="${sel==='paypal'}">PayPal</button></div>`;
 const zahlOf = id => { const b=document.querySelector(`#${id} [aria-pressed="true"]`); return b ? b.dataset.z : 'bar'; };
 const zChip = z => z==='paypal' ? ' <span class="chip pp">PayPal</span>' : '';
@@ -621,9 +648,9 @@ function render(){
   if (S.mode==='login'){ $('#backToCard').hidden = !S.holder; return show('v-login'); }
   if (S.mode==='newpw') return show('v-newpw');
   if (S.mode==='noadmin'){ $('#naEmail').textContent = S.session?.user?.email||''; return show('v-noadmin'); }
-  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-current', b.dataset.tab===(S.tab==='bericht'||S.tab==='aushang'?'mehr':S.tab)?'page':'false'));
+  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-current', b.dataset.tab===(['bericht','aushang','protokoll'].includes(S.tab)?'mehr':S.tab)?'page':'false'));
   show('v-'+S.tab);
-  renderKasse(); renderKarten(); renderScan(); renderCfg(); if (S.tab==='bericht') renderBericht(); if (S.tab==='aushang') renderPoster();
+  renderKasse(); renderKarten(); renderScan(); renderCfg(); if (S.tab==='bericht') renderBericht(); if (S.tab==='aushang') renderPoster(); if (S.tab==='protokoll') renderPlog();
   if ($('#selbstOn') && document.activeElement!==$('#selbstOn')) $('#selbstOn').checked = !!S.config.selbstbedienung;
   if ($('#kasseAusSw')) $('#kasseAusSw').checked = !!S.kasseAus;
   if (S.sheet && S.sheet.kind==='karte') openCard(S.sheet.id);
@@ -1120,6 +1147,25 @@ async function heartbeat(){
   beatT=setTimeout(heartbeat, 60000);
 }
 
+/* ---------- Löschprotokoll ---------- */
+async function loadPlog(){
+  S.plogErr=null;
+  try{ S.plog = await q(sb.from('protokoll').select('*').order('zeit',{ascending:false}).limit(1000)); }
+  catch(e){ S.plog=null; S.plogErr = /protokoll/.test(e.message||'') ? 'Das Protokoll ist noch nicht eingerichtet: bitte update-protokoll.sql im SQL Editor ausführen.' : 'Protokoll konnte nicht geladen werden.'; }
+  renderPlog();
+}
+function plogKarte(p){ const c=p.karte; if (!c) return ''; const k=S.karten.find(x=>x.code===c); if (k) return disp(k);
+  const kp=(S.plog||[]).find(x=>x.bereich==='Karte' && x.karte===c && x.details && x.details.name); return kp ? kp.details.name+' ('+c+')' : c; }
+function renderPlog(){
+  const out=$('#plogOut'); if (!out) return;
+  if (S.plog===undefined){ out.innerHTML='<div class="panel empty">Wird geladen …</div>'; loadPlog(); return; }
+  if (S.plogErr){ out.innerHTML=`<div class="notice">${esc(S.plogErr)}</div>`; return; }
+  if (!S.plog.length){ out.innerHTML='<div class="list"><div class="empty">Noch keine Löschungen.</div></div>'; return; }
+  out.innerHTML = `<div class="list plog">${S.plog.map(p=>{ const d=p.details||{};
+    const was = p.bereich==='Abbuchung' ? 'Abbuchung storniert' : p.bereich==='Aufladung' ? 'Zahlung gelöscht' : p.bereich==='Kassenbuch' ? 'Kassenbuch: '+esc(d.text||d.kategorie||'') : p.bereich==='Karte' ? 'Karte gelöscht' : p.bereich==='Admin' ? 'Admin entfernt: '+esc(d.email||'') : esc(p.bereich);
+    return `<div class="item"><span class="date">${fmtTs(p.zeit).replace(', ','<br>')}</span><span class="t"><b>${was}</b><small>${p.karte?esc(plogKarte(p))+' · ':''}von ${esc(p.admin||'unbekannt')}</small><small>Grund: ${p.grund?esc(p.grund):'<i>ohne Angabe</i>'}</small></span><span class="amt">${p.betrag!=null?eur(p.betrag):''}</span></div>`; }).join('')}</div>`;
+}
+
 /* ---------- Storno (nur Admins) ---------- */
 // passende Einnahme im Kassenbuch zu einer Aufladung: eindeutige Zuordnung je Karte
 // (gleicher Betrag, gleiche Zahlungsart, Einnahme nicht vor der Aufladung, zeitlich nächste zuerst)
@@ -1145,10 +1191,12 @@ function stornoSheet(id){
       <span>${b.bezahlt===false?'Die Zahlung war noch offen. ':`Bezahlt ${zName(b.zahlart)}. `}Das Guthaben der Karte sinkt um ${eur(b.betrag)} auf ${eur(rest)}.</span>
       ${rest<0?`<b style="color:var(--neg)">Achtung: Das Guthaben wird dadurch negativ, weil davon schon Getränke abgebucht wurden.</b>`:''}</div>
       ${ke?`<label class="check"><input type="checkbox" id="stKasse" checked><span>Auch die Einnahme im Kassenbuch löschen („${esc(ke.text||ke.kategorie)}“, ${eur(ke.betrag)}, ${new Date(ke.datum).toLocaleDateString('de-DE')})</span></label>`:'<span class="muted" style="font-size:14px">Im Kassenbuch wurde dazu keine passende Einnahme gefunden.</span>'}
+      ${grundField('stGrund')}
       <div class="row"><button class="btn danger" data-act="storno-go" data-id="${id}" data-back="${back||''}" data-kasse="${ke?ke.id:''}">Ja, löschen</button><button class="btn" data-act="${back?'card':'close'}" data-id="${back||''}">Abbrechen</button></div>`;
   } else {
     html = `<div class="notice stack" style="gap:6px"><b>${b.anzahl>1?b.anzahl+' Getränke':'Getränk'} über ${eur(b.betrag)} stornieren?</b>${kopf}
       <span>Der Betrag wird der Karte wieder gutgeschrieben. Die Abbuchung wird gelöscht.</span></div>
+      ${grundField('stGrund')}
       <div class="row"><button class="btn danger" data-act="storno-go" data-id="${id}" data-back="${back||''}">Ja, stornieren</button><button class="btn" data-act="${back?'card':'close'}" data-id="${back||''}">Abbrechen</button></div>`;
   }
   openSheet(`${sheetHead(b.typ==='auf'?'Zahlung löschen':'Abbuchung stornieren')}${html}`, {kind:'storno', id});
@@ -1281,6 +1329,7 @@ async function entryDetail(id){
     ${e.text?`<div><div class="label">Beschreibung</div>${esc(e.text)}</div>`:''}
     ${e.von?`<div><div class="label">Eingetragen von</div>${esc(e.von)}</div>`:''}
     <div id="belegBox">${e.beleg?'<div class="label">Kassenzettel</div><div class="muted">Wird geladen …</div>':'<div class="muted">Kein Beleg hinterlegt.</div>'}</div>
+    ${grundField('keGrund')}
     <button class="btn danger" data-act="del-entry" data-id="${e.id}">Buchung löschen</button>`);
   if (e.beleg){ try{ const d=await q(sb.storage.from('belege').createSignedUrl(e.beleg, 3600)); $('#belegBox').innerHTML=`<div class="label">Kassenzettel</div><a href="${d.signedUrl}" target="_blank" rel="noopener"><img class="receipt" src="${d.signedUrl}" alt="Kassenzettel"></a>`; }catch(err){ $('#belegBox').innerHTML='<div class="muted">Beleg konnte nicht geladen werden.</div>'; } }
 }
@@ -1396,6 +1445,7 @@ function openCard(code){
       <span class="muted">Die Karte und ihr Verlauf werden endgültig entfernt, der Link funktioniert dann nicht mehr. Einnahmen im Kassenbuch bleiben erhalten.${bal>0?` <b>Achtung: Auf der Karte sind noch ${eur(bal)} Guthaben.</b>`:''}${openPay()[code]?` <b>Achtung: ${eur(openPay()[code])} sind noch nicht bezahlt.</b>`:''}</span>
       ${(()=>{ const ks=S.kasse.filter(e=>e.karte===code), sum=ks.reduce((a,e)=>a+(e.typ==='ein'?e.betrag:-e.betrag),0);
         return ks.length ? `<label class="check"><input type="checkbox" id="delKasse"><span>Auch die ${ks.length===1?'Einnahme':ks.length+' Einnahmen'} dieser Karte aus dem Kassenbuch löschen (${eur(sum)}). Nur bei Testkarten oder Fehlbuchungen.</span></label>` : ''; })()}
+      ${grundField('cdGrund')}
       <button class="btn danger" data-act="del-card" data-id="${code}">Karte löschen</button></div>`, {kind:'karte', id:code});
   paintQRs($('#sheetPanel'));
 }
@@ -1506,7 +1556,7 @@ async function copy(text){
 /* ---------- Events ---------- */
 document.addEventListener('click', async ev=>{
   const t=ev.target.closest('[data-act],[data-tab]'); if(!t) return;
-  if (t.dataset.tab){ if (S.tab==='scan' && t.dataset.tab!=='scan') camStop(); S.tab=t.dataset.tab; render(); scrollTo(0,0); return; }
+  if (t.dataset.tab){ if (t.dataset.tab==='protokoll') S.plog=undefined; if (S.tab==='scan' && t.dataset.tab!=='scan') camStop(); S.tab=t.dataset.tab; render(); scrollTo(0,0); return; }
   const a=t.dataset.act, id=t.dataset.id, k=S.karten.find(x=>x.code===id);
   const confirm2 = label => { if (t.dataset.confirm) return true; t.dataset.confirm='1'; t.textContent=label; return false; };
   try{
@@ -1523,21 +1573,24 @@ document.addEventListener('click', async ev=>{
     else if (a==='cam-start') camStart();
     else if (a==='cam-stop') camStop();
     else if (a==='manual-book'){ const c=parseCode($('#manualCode').value); if(!c){ toast('Bitte einen gültigen Code eingeben.'); return; } $('#manualCode').value=''; await book(c); }
-    else if (a==='undo'){ const r=S.lastScan; if(!r||!r.id) return; await q(sb.from('buchungen').delete().eq('id',r.id)); r.undone=true; r.guthaben+=r.betrag; renderScan(); toast('Abbuchung zurückgenommen'); loadAll(); }
+    else if (a==='undo'){ const r=S.lastScan; if(!r||!r.id) return; await loeschen('buchung', r.id, 'Rückgängig direkt nach dem Scan'); r.undone=true; r.guthaben+=r.betrag; renderScan(); toast('Abbuchung zurückgenommen'); loadAll(); }
     else if (a==='share'){ try{ await navigator.share({title:'Getränkekarte', text:shareText(k)}); markSent(id); }catch(e){} }
     else if (a==='copy-msg'){ if (await copy(shareText(k))) markSent(id); }
     else if (a==='save-img'){ const blob=await cardImage(k), file=new File([blob],'Getraenkekarte-'+k.code+'.png',{type:'image/png'});
       if (navigator.canShare && navigator.canShare({files:[file]})) { try{ await navigator.share({files:[file], text:shareText(k)}); markSent(id); }catch(e){} } else { download(blob, file.name); markSent(id); } }
     else if (a==='sent-off') confirmDeact(id);
+    else if (a==='plog-reload'){ S.plog=undefined; renderPlog(); }
+    else if (a==='csv-protokoll'){ if (!S.plog){ toast('Protokoll ist noch nicht geladen.'); return; } const qv=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+      const rows=[['Zeitpunkt','Admin','Bereich','Karte','Betrag','Grund','Details']].concat(S.plog.map(p=>[fmtTs(p.zeit),p.admin,p.bereich,p.karte?plogKarte(p):'',p.betrag!=null?(p.betrag/100).toFixed(2).replace('.',','):'',p.grund,JSON.stringify(p.details||{})]));
+      download(new Blob(['\ufeff'+rows.map(r=>r.map(qv).join(';')).join('\r\n')],{type:'text/csv'}), 'Loeschprotokoll-'+today()+'.csv'); }
     else if (a==='app-share'){ try{ await navigator.share({title:'Getränkekasse', text:appInvite()}); }catch(e){} }
     else if (a==='app-copy') copy(appInvite());
     else if (a==='app-copy-link') copy(APP_URL);
     else if (a==='my-card'){ closeSheet(); camStop(); S.wantCard=true; S.mode='holder'; S.holderLoaded=false; await loadHolder(); scrollTo(0,0); }
     else if (a==='hscan') hScanOpen();
     else if (a==='storno') stornoSheet(id);
-    else if (a==='storno-go'){ t.disabled=true; const back=t.dataset.back, b=S.buch.find(x=>x.id===id), kid=t.dataset.kasse, mitKasse=kid && $('#stKasse') && $('#stKasse').checked;
-      await q(sb.from('buchungen').delete().eq('id',id));
-      if (mitKasse){ const ke=S.kasse.find(e=>e.id===kid); await q(sb.from('kasse').delete().eq('id',kid)); if (ke && ke.beleg) sb.storage.from('belege').remove([ke.beleg]); }
+    else if (a==='storno-go'){ const grund=grundOf('stGrund'); if (!grund) return; t.disabled=true; const back=t.dataset.back, b=S.buch.find(x=>x.id===id), kid=t.dataset.kasse, mitKasse=kid && $('#stKasse') && $('#stKasse').checked;
+      try{ await loeschen('buchung', id, grund); if (mitKasse) await loeschen('kasse', kid, grund); }catch(e){ t.disabled=false; throw e; }
       toast(b && b.typ==='auf' ? 'Zahlung gelöscht'+(mitKasse?' – auch im Kassenbuch':'') : 'Abbuchung storniert – Betrag gutgeschrieben'); await loadAll(); if (back) openCard(back); else closeSheet(); }
     else if (a==='to-admin'){ S.zapf=false; S.zapfState=null; S.wantCard=false; try{ history.replaceState(null,'',BASE); }catch(e){} decideMode(); }
     else if (a==='zapf-open'){ S.zapfState={}; S.mode='zapf'; S.holderLoaded=true; render(); scrollTo(0,0); zapfGo(true); }
@@ -1575,13 +1628,14 @@ document.addEventListener('click', async ev=>{
     else if (a==='show-all'){ S.onlyOpen=false; renderKarten(); }
     else if (a==='deact') confirmDeact(id);
     else if (a==='react'){ await q(sb.from('karten').update({aktiv:a==='react'}).eq('code',id)); toast(a==='react'?'Karte aktiviert':'Karte deaktiviert'); loadAll(); }
-    else if (a==='del-card'){ if (!confirm2('Endgültig löschen? Nochmal tippen')) return;
+    else if (a==='del-card'){ const grund=grundOf('cdGrund'); if (!grund) return; if (!confirm2('Endgültig löschen? Nochmal tippen')) return;
       const alsoKasse = $('#delKasse') && $('#delKasse').checked;
-      if (alsoKasse) await q(sb.from('kasse').delete().eq('karte',id));
-      await q(sb.from('karten').delete().eq('code',id)); closeSheet(); toast('Karte von '+disp(k)+' gelöscht'+(alsoKasse?' – Kassenbuch bereinigt':'')); loadAll(); }
-    else if (a==='del-entry'){ if (!confirm2('Tippen zum endgültigen Löschen')) return; const e=S.kasse.find(x=>x.id===id);
-      await q(sb.from('kasse').delete().eq('id',id)); if (e && e.beleg) sb.storage.from('belege').remove([e.beleg]); closeSheet(); toast('Buchung gelöscht'); loadAll(); }
-    else if (a==='del-admin'){ if (!confirm2('Wirklich entfernen?')) return; await q(sb.from('admins').delete().eq('email',id)); toast('Entfernt'); loadAll(); }
+      if (alsoKasse) await loeschen('kasse_karte', id, grund);
+      await loeschen('karte', id, grund); closeSheet(); toast('Karte von '+disp(k)+' gelöscht'+(alsoKasse?' – Kassenbuch bereinigt':'')); loadAll(); }
+    else if (a==='del-entry'){ const grund=grundOf('keGrund'); if (!grund) return; if (!confirm2('Tippen zum endgültigen Löschen')) return;
+      await loeschen('kasse', id, grund); closeSheet(); toast('Buchung gelöscht'); loadAll(); }
+    else if (a==='del-admin'){ openSheet(`${sheetHead('Admin entfernen')}<div class="notice"><b>${esc(id)}</b> als Admin entfernen? Die Person hat danach keinen Zugriff mehr auf die Verwaltung.</div>${grundField('adGrund')}<div class="row"><button class="btn danger" data-act="del-admin-go" data-id="${esc(id)}">Ja, entfernen</button><button class="btn" data-act="close">Abbrechen</button></div>`, {kind:'deladmin'}); }
+    else if (a==='del-admin-go'){ const grund=grundOf('adGrund'); if (!grund) return; t.disabled=true; await loeschen('admin', id, grund); closeSheet(); toast('Admin entfernt'); loadAll(); }
     else if (a==='rpreset'){ S.rPreset=t.dataset.p; S.rRange=presetRange(t.dataset.p); renderBericht(); }
     else if (a==='print'){ window.print(); }
     else if (a==='csv-kasse') saveCSV('kasse');
