@@ -228,6 +228,10 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
 .zapf .done .ok{width:72px;height:72px;border-radius:50%;background:var(--pos);color:#fff;display:grid;place-items:center}
 .zapf .done .ok svg{width:42px;height:42px}
 .zapf .done .big{font-family:var(--f-mono);font-size:32px;font-weight:600}
+.zseg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.zseg button{border:0;background:var(--bg);padding:10px;font-weight:600;cursor:pointer;min-height:44px}
+.zseg button[aria-pressed="true"]{background:var(--primary);color:var(--on-primary)}
+.chip.pp{color:#0070BA;border-color:#0070BA}
 .switch{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .switch input{width:52px;height:30px;accent-color:var(--primary)}
 .poster{background:#fff;color:#000;border:1px solid var(--line);border-radius:16px;padding:28px 22px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;max-width:560px;margin:0 auto}
@@ -546,7 +550,7 @@ function applyBrand(){
 
 let toastT;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2800); }
-function fail(e, what){ console.warn(e); if (/freigegeben|wahl|karte_entscheidung/.test(e&&e.message||'') && /column|schema|function/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-entscheidung.sql ausführen.'); if (/einwilligung/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-einwilligung.sql ausführen.'); if (/name_enc|krypto/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-pseudonyme.sql ausführen.'); if (/bezahlt/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-zahlungen.sql ausführen.'); toast((what||'Speichern')+' fehlgeschlagen' + (e && e.message ? ': '+e.message : '')); }
+function fail(e, what){ console.warn(e); if (/zahlart/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-zahlart.sql ausführen.'); if (/freigegeben|wahl|karte_entscheidung/.test(e&&e.message||'') && /column|schema|function/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-entscheidung.sql ausführen.'); if (/einwilligung/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-einwilligung.sql ausführen.'); if (/name_enc|krypto/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-pseudonyme.sql ausführen.'); if (/bezahlt/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-zahlungen.sql ausführen.'); toast((what||'Speichern')+' fehlgeschlagen' + (e && e.message ? ': '+e.message : '')); }
 async function q(p){ const {data, error} = await p; if (error) throw error; return data; }
 
 /* ---------- Berechnungen ---------- */
@@ -572,8 +576,13 @@ function cardHTML(code, name, bal, aktiv=true, einheit, th){
     <div><div class="sub" style="text-align:right">${aktiv?'Guthaben':'Deaktiviert'}</div><div class="bal">${bal==null?'–':eur(bal)}</div></div></div></div>`;
 }
 function paintQRs(root){ root.querySelectorAll('canvas[data-qr]').forEach(c=>drawQR(c, qrText(c.dataset.qr), 520)); }
+const zahlSeg = (id, sel='bar') => `<div class="zseg" role="group" aria-label="Zahlungsart" id="${id}"><button type="button" data-z="bar" aria-pressed="${sel==='bar'}">Bar</button><button type="button" data-z="paypal" aria-pressed="${sel==='paypal'}">PayPal</button></div>`;
+const zahlOf = id => { const b=document.querySelector(`#${id} [aria-pressed="true"]`); return b ? b.dataset.z : 'bar'; };
+const zChip = z => z==='paypal' ? ' <span class="chip pp">PayPal</span>' : '';
+const zName = z => z==='paypal' ? 'PayPal' : 'Bar';
+document.addEventListener('click', ev=>{ const b=ev.target.closest('.zseg button'); if (!b) return; b.parentElement.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x===b)); });
 function histHTML(list, adm){
-  return list.length ? `<div class="list">${list.map(b=>`<${adm&&b.typ==='ab'&&b.id?`button class="item" data-act="storno" data-id="${b.id}" title="Tippen zum Stornieren"`:'div class="item"'}><span class="date">${fmtTs(b.created_at).replace(', ','<br>')}</span><span class="t"><b>${b.typ==='auf'?'Aufgeladen':'Getränk'+(b.anzahl>1?' ×'+b.anzahl:'')}</b>${b.selbst||b.von==='Selbstbedienung'?' <span class="chip">selbst</span>':''}</span><span class="amt ${b.typ==='auf'?'pos':'neg'}">${b.typ==='auf'?'+':'−'}${eur(b.betrag)}</span></${adm&&b.typ==='ab'&&b.id?'button':'div'}>`).join('')}</div>` : '<div class="list"><div class="empty">Noch keine Buchungen.</div></div>';
+  return list.length ? `<div class="list">${list.map(b=>`<${adm&&b.typ==='ab'&&b.id?`button class="item" data-act="storno" data-id="${b.id}" title="Tippen zum Stornieren"`:'div class="item"'}><span class="date">${fmtTs(b.created_at).replace(', ','<br>')}</span><span class="t"><b>${b.typ==='auf'?'Aufgeladen':'Getränk'+(b.anzahl>1?' ×'+b.anzahl:'')}</b>${b.selbst||b.von==='Selbstbedienung'?' <span class="chip">selbst</span>':''}${b.typ==='auf'?zChip(b.zahlart):''}</span><span class="amt ${b.typ==='auf'?'pos':'neg'}">${b.typ==='auf'?'+':'−'}${eur(b.betrag)}</span></${adm&&b.typ==='ab'&&b.id?'button':'div'}>`).join('')}</div>` : '<div class="list"><div class="empty">Noch keine Buchungen.</div></div>';
 }
 function setIcon(th){
   th = th || themeOf(null);
@@ -698,6 +707,7 @@ function renderKasse(){
     <div><span class="label">Ausgaben</span><span class="mid neg">−${eur(st.aus)}</span></div>
     <div><span class="label">Offenes Kartenguthaben</span><span class="mid">${eur(offen)}</span></div>
     <div><span class="label">Frei verfügbar</span><span class="mid ${frei<0?'neg':''}">${eur(frei)}</span></div></div>`
+    + (()=>{ const pp=S.kasse.filter(e=>e.zahlart==='paypal').reduce((a,e)=>a+(e.typ==='ein'?e.betrag:-e.betrag),0); return pp ? `<div class="spread" style="margin-top:8px;font-size:14px"><span class="muted">davon Bar</span><span class="num">${eur(st.saldo-pp)}</span></div><div class="spread" style="font-size:14px"><span class="muted">davon auf PayPal</span><span class="num">${eur(pp)}</span></div>` : ''; })()
     + (st.anf ? `<div class="spread muted" style="margin-top:8px;font-size:14px"><span>darin Anfangsbestand (Übertrag)</span><span class="num">${eur(st.anf)}</span></div>`
               : `<button class="btn wide" data-act="anf" style="margin-top:12px">Anfangsbestand buchen (vorhandenes Bargeld übernehmen)</button>`)
     + (()=>{ const op=openPay(), n=Object.keys(op).length, sum=Object.values(op).reduce((a,b)=>a+b,0);
@@ -711,7 +721,7 @@ function renderKasse(){
     const ym=e.datum.slice(0,7);
     if (ym!==cur){ cur=ym; html+=`<div class="month"><span>${monthName(ym)}</span><span class="num">${mSum[ym]>=0?'+':'−'}${eur(Math.abs(mSum[ym]))}</span></div>`; }
     html += `<button class="item" data-act="entry" data-id="${e.id}"><span class="date">${fmtDate(e.datum)}<br>${e.datum.slice(0,4)}</span>
-      <span class="t"><b>${esc(e.text||e.kategorie)}</b><small>${esc(e.kategorie)}${e.beleg?' <span class="chip">Beleg</span>':''}${e.karte && !S.karten.some(k=>k.code===e.karte)?' <span class="chip">Karte gelöscht</span>':''}</small></span>
+      <span class="t"><b>${esc(e.text||e.kategorie)}</b><small>${esc(e.kategorie)}${zChip(e.zahlart)}${e.beleg?' <span class="chip">Beleg</span>':''}${e.karte && !S.karten.some(k=>k.code===e.karte)?' <span class="chip">Karte gelöscht</span>':''}</small></span>
       <span class="amt ${e.typ==='ein'?'pos':'neg'}">${e.typ==='ein'?'+':'−'}${eur(e.betrag)}<small>Stand ${eur(stand[e.id])}</small></span></button>`;
   }
   $('#kasseList').innerHTML = `<div class="list">${html}</div>`;
@@ -724,7 +734,7 @@ function renderKarten(){
   $('#kartenSummary').innerHTML = `<div class="balance">
     <div><span class="label">Aktive Karten</span><span class="mid">${aktiv.length}</span></div>
     <div><span class="label">Offenes Guthaben</span><span class="mid">${eur(aktiv.reduce((s,k)=>s+Math.max(0,bal[k.code]||0),0))}</span></div>
-    <div><span class="label">Aufgeladen gesamt</span><span class="mid">${eur(sum('auf'))}</span></div>
+    <div><span class="label">Aufgeladen gesamt</span><span class="mid">${eur(sum('auf'))}</span>${(()=>{ const pp=S.buch.filter(b=>b.typ==='auf'&&b.zahlart==='paypal').reduce((a,b)=>a+b.betrag,0); return pp?`<span class="muted" style="font-size:13px">davon PayPal ${eur(pp)}</span>`:''; })()}</div>
     <div><span class="label">Abgebucht gesamt</span><span class="mid">${eur(sum('ab'))}</span></div></div>`;
   const op = openPay();
   const todo = S.karten.filter(k=>k.freigegeben===false && k.wahl==='deck'), wait = S.karten.filter(k=>k.freigegeben===false && !k.wahl);
@@ -817,6 +827,7 @@ function renderBericht(){
       <span class="sec">Einnahmen</span>
       ${ein.length?ein.map(([k,v])=>row(esc(k),'+'+eur(v))).join(''):row('keine','–')}
       ${row('Summe Einnahmen','+'+eur(sumE),'tot')}
+      ${(()=>{ const pp=inP.filter(e=>e.typ==='ein'&&e.kategorie!==ANF&&e.zahlart==='paypal').reduce((a,e)=>a+e.betrag,0); return pp ? row('&nbsp;&nbsp;davon bar', eur(sumE-pp)) + row('&nbsp;&nbsp;davon per PayPal', eur(pp)) : ''; })()}
       <span class="sec">Ausgaben</span>
       ${aus.length?aus.map(([k,v])=>row(esc(k),'−'+eur(v))).join(''):row('keine','–')}
       ${row('Summe Ausgaben','−'+eur(sumA),'tot')}
@@ -1215,6 +1226,7 @@ function entryForm(pre){
         <div class="field"><label class="label" for="eDatum">Datum</label><input id="eDatum" type="date" value="${today()}" required></div>
       </div>
       <div class="field"><label class="label" for="eKat">Kategorie</label><select id="eKat">${kats('aus')}</select></div>
+      <div class="field"><span class="label">Bezahlt per</span>${zahlSeg('eZahl')}</div>
       <div class="field"><label class="label" for="eText">Beschreibung</label><input id="eText" maxlength="120" placeholder="z. B. 3 Kisten Wasser, 2 Kisten Cola"></div>
       <div class="field"><span class="label">Kassenzettel</span><div class="photo"><img id="ePrev" alt="" hidden><label class="btn" for="eFoto">Foto aufnehmen</label><input id="eFoto" type="file" accept="image/*" capture="environment" hidden><span class="muted" id="eFotoLbl">Kein Beleg</span></div></div>
       <button class="btn primary wide" type="submit" id="eSave">Buchung speichern</button>
@@ -1232,7 +1244,7 @@ function entryForm(pre){
     try{
       let beleg=null;
       if (foto){ const path = today().slice(0,7)+'/'+crypto.randomUUID()+'.jpg'; await q(sb.storage.from('belege').upload(path, foto, {contentType:'image/jpeg'})); beleg=path; }
-      await q(sb.from('kasse').insert({typ:f.dataset.typ, betrag, datum:$('#eDatum').value||today(), kategorie:$('#eKat').value, text:$('#eText').value.trim()||null, beleg}));
+      await q(sb.from('kasse').insert({typ:f.dataset.typ, betrag, datum:$('#eDatum').value||today(), kategorie:$('#eKat').value, zahlart:zahlOf('eZahl'), text:$('#eText').value.trim()||null, beleg}));
       closeSheet(); toast('Buchung gespeichert'); loadAll();
     }catch(e){ fail(e); btn.disabled=false; btn.textContent='Buchung speichern'; }
   };
@@ -1263,12 +1275,14 @@ function cardForm(){
       <div class="notice" id="cLeerInfo" hidden>Die Karte wird ohne Guthaben angelegt. Link und QR-Code kannst du sofort verschicken. Restguthaben oder eine Aufladung buchst du später in der Karte über „+ Aufladen“.</div>
       <div class="field" id="cWertRow"><label class="label" for="cWert" id="cWertLbl">Wert (€)</label><input id="cWert" inputmode="decimal" class="num" value="${centsIn(S.config.wert)}"></div>
       <label class="check" id="cPaidRow"><input type="checkbox" id="cPaid" checked><span>Bezahlt – als Einnahme ins Kassenbuch eintragen. Ohne Haken bleibt die Zahlung offen und kann später nachgebucht werden.</span></label>
+      <div class="field" id="cZahlRow"><span class="label">Bezahlt per</span>${zahlSeg('cZahl')}</div>
       <div class="notice" id="cAltInfo" hidden>Für Karten, die schon vor der App verkauft und bezahlt wurden. Das Restguthaben kommt auf die neue digitale Karte, ins Kassenbuch wird nichts gebucht, weil das Geld schon im Anfangsbestand steckt.</div>
       <button class="btn primary wide" type="submit" id="cSave">Karte anlegen</button>
     </form>`);
   const f=$('#cardForm'); f.dataset.mode='neu';
+  $('#cPaid').addEventListener('change', ()=>{ $('#cZahlRow').hidden=!$('#cPaid').checked; });
   f.querySelectorAll('.seg3 button').forEach(b=>b.onclick=()=>{ f.dataset.mode=b.dataset.mode; f.querySelectorAll('.seg3 button').forEach(x=>x.setAttribute('aria-pressed',x===b));
-    const alt=b.dataset.mode==='alt', leer=b.dataset.mode==='leer'; $('#cWertLbl').textContent = alt?'Restguthaben (€)':'Wert (€)'; $('#cWertRow').hidden=leer; $('#cPaidRow').hidden=alt||leer; $('#cAltInfo').hidden=!alt; $('#cLeerInfo').hidden=!leer; $('#cSave').textContent = alt?'Karte übernehmen':(leer?'Leere Karte anlegen':'Karte anlegen'); if (alt) $('#cWert').select(); });
+    const alt=b.dataset.mode==='alt', leer=b.dataset.mode==='leer'; $('#cWertLbl').textContent = alt?'Restguthaben (€)':'Wert (€)'; $('#cWertRow').hidden=leer; $('#cPaidRow').hidden=alt||leer; $('#cAltInfo').hidden=!alt; $('#cLeerInfo').hidden=!leer; $('#cZahlRow').hidden=alt||leer||!$('#cPaid').checked; $('#cSave').textContent = alt?'Karte übernehmen':(leer?'Leere Karte anlegen':'Karte anlegen'); if (alt) $('#cWert').select(); });
   f.onsubmit = async ev=>{
     ev.preventDefault(); const name=$('#cName').value.trim(), wert=toCents($('#cWert').value), alt=f.dataset.mode==='alt', leer=f.dataset.mode==='leer';
     const ok=false;
@@ -1291,9 +1305,9 @@ function cardForm(){
     $('#cSave').disabled=true; const code=newCode();
     try{
       await q(sb.from('karten').insert({code, ...(await row()), wert: alt ? Math.max(wert, S.config.wert) : wert}));
-      const paid = alt || $('#cPaid').checked;
-      await q(sb.from('buchungen').insert(paid ? {karte:code, typ:'auf', betrag:wert} : {karte:code, typ:'auf', betrag:wert, bezahlt:false}));
-      if (paid && !alt) await q(sb.from('kasse').insert({typ:'ein', betrag:wert, datum:today(), kategorie:'Getränkekarten-Verkauf', text:'Getränkekarte – '+show, karte:code}));
+      const paid = alt || $('#cPaid').checked, z = zahlOf('cZahl');
+      await q(sb.from('buchungen').insert(alt ? {karte:code, typ:'auf', betrag:wert} : paid ? {karte:code, typ:'auf', betrag:wert, zahlart:z} : {karte:code, typ:'auf', betrag:wert, bezahlt:false}));
+      if (paid && !alt) await q(sb.from('kasse').insert({typ:'ein', betrag:wert, datum:today(), kategorie:'Getränkekarten-Verkauf', text:'Getränkekarte – '+show, karte:code, zahlart:z}));
       closeSheet(); toast((alt?'Karte mit '+eur(wert)+' übernommen':'Karte angelegt')+' – '+show); await loadAll(); openCard(code);
     }catch(e){ fail(e); $('#cSave').disabled=false; }
   };
@@ -1449,10 +1463,10 @@ async function cardImage(k){
 }
 function saveCSV(kind){
   const qv=v=>'"'+String(v??'').replace(/"/g,'""')+'"', n=c=>((c||0)/100).toFixed(2).replace('.',','); let rows;
-  if (kind==='kasse'){ rows=[['Datum','Art','Kategorie','Beschreibung','Betrag','Beleg','Eingetragen von']];
-    [...S.kasse].sort((a,b)=>a.datum.localeCompare(b.datum)||a.created_at.localeCompare(b.created_at)).forEach(e=>rows.push([e.datum,e.typ==='ein'?'Einnahme':'Ausgabe',e.kategorie,e.text,(e.typ==='ein'?'':'-')+n(e.betrag),e.beleg?'ja':'nein',e.von]));
-  } else { const byCode=Object.fromEntries(S.karten.map(k=>[k.code,k])); rows=[['Zeitpunkt','Karte','Element','Name','Art','Anzahl','Betrag','Von']];
-    [...S.buch].sort((a,b)=>a.created_at.localeCompare(b.created_at)).forEach(b=>rows.push([fmtTs(b.created_at),b.karte,byCode[b.karte]?.name,klar(byCode[b.karte])||'',b.typ==='auf'?'Aufladung':'Abbuchung',b.anzahl,(b.typ==='auf'?'':'-')+n(b.betrag),b.von])); }
+  if (kind==='kasse'){ rows=[['Datum','Art','Kategorie','Beschreibung','Betrag','Zahlart','Beleg','Eingetragen von']];
+    [...S.kasse].sort((a,b)=>a.datum.localeCompare(b.datum)||a.created_at.localeCompare(b.created_at)).forEach(e=>rows.push([e.datum,e.typ==='ein'?'Einnahme':'Ausgabe',e.kategorie,e.text,(e.typ==='ein'?'':'-')+n(e.betrag),zName(e.zahlart),e.beleg?'ja':'nein',e.von]));
+  } else { const byCode=Object.fromEntries(S.karten.map(k=>[k.code,k])); rows=[['Zeitpunkt','Karte','Element','Name','Art','Anzahl','Betrag','Zahlart','Von']];
+    [...S.buch].sort((a,b)=>a.created_at.localeCompare(b.created_at)).forEach(b=>rows.push([fmtTs(b.created_at),b.karte,byCode[b.karte]?.name,klar(byCode[b.karte])||'',b.typ==='auf'?'Aufladung':'Abbuchung',b.anzahl,(b.typ==='auf'?'':'-')+n(b.betrag),b.typ==='auf'?(b.bezahlt===false?'offen':zName(b.zahlart)):'',b.von])); }
   download(new Blob(['﻿'+rows.map(r=>r.map(qv).join(';')).join('\r\n')],{type:'text/csv'}), (kind==='kasse'?'Kassenbuch':'Kartenbuchungen')+'-'+today()+'.csv');
 }
 const APP_URL = BASE.replace(/index\.html$/,'');
@@ -1516,18 +1530,21 @@ document.addEventListener('click', async ev=>{
     else if (a==='topup'){ $('#topupRow').innerHTML = `<div class="panel stack" style="width:100%">
         <div class="field"><label class="label" for="tBetrag">Betrag (€)</label><input id="tBetrag" inputmode="decimal" class="num inp" value="${centsIn(S.config.wert)}"></div>
         <b>Wurde schon bezahlt?</b>
-        <div class="stack" style="gap:8px"><button class="btn primary" data-act="topup-go" data-paid="1" data-id="${id}">Ja, jetzt bezahlt (Kassenbuch)</button>
+        <div class="stack" style="gap:8px"><div class="row"><button class="btn primary" style="flex:1" data-act="topup-go" data-paid="1" data-z="bar" data-id="${id}">Ja, bar bezahlt</button><button class="btn primary" style="flex:1" data-act="topup-go" data-paid="1" data-z="paypal" data-id="${id}">Ja, per PayPal</button></div>
         <button class="btn" data-act="topup-go" data-paid="0" data-id="${id}">Nein, zahlt später</button>
         <button class="btn" data-act="topup-go" data-paid="alt" data-id="${id}">Restguthaben von alter Karte (schon früher bezahlt)</button>
         <button class="btn link" data-act="card" data-id="${id}">Abbrechen</button></div></div>`; }
     else if (a==='topup-go'){ const w=toCents($('#tBetrag').value), mode=t.dataset.paid; if (!(w>0)){ toast('Bitte einen Betrag größer 0 eingeben.'); return; } t.disabled=true;
-      await q(sb.from('buchungen').insert(mode==='0' ? {karte:id, typ:'auf', betrag:w, bezahlt:false} : {karte:id, typ:'auf', betrag:w}));
-      if (mode==='1') await q(sb.from('kasse').insert({typ:'ein', betrag:w, datum:today(), kategorie:'Getränkekarten-Verkauf', text:'Aufladung – '+k.name, karte:id}));
-      toast(eur(w)+(mode==='alt'?' Restguthaben übernommen':' aufgeladen')+(mode==='0'?' – Zahlung offen':'')); await loadAll(); openCard(id); }
-    else if (a==='pay-open'){ const sum=openPay()[id]||0; if (!sum) return; if (!confirm2('Geld erhalten? Tippen zum Bestätigen')) return;
-      await q(sb.from('buchungen').update({bezahlt:true}).eq('karte',id).eq('typ','auf').eq('bezahlt',false));
-      await q(sb.from('kasse').insert({typ:'ein', betrag:sum, datum:today(), kategorie:'Getränkekarten-Verkauf', text:'Nachzahlung Getränkekarte – '+k.name, karte:id}));
-      toast(eur(sum)+' nachgebucht'); await loadAll(); openCard(id); }
+      const z=t.dataset.z||'bar';
+      await q(sb.from('buchungen').insert(mode==='0' ? {karte:id, typ:'auf', betrag:w, bezahlt:false} : mode==='1' ? {karte:id, typ:'auf', betrag:w, zahlart:z} : {karte:id, typ:'auf', betrag:w}));
+      if (mode==='1') await q(sb.from('kasse').insert({typ:'ein', betrag:w, datum:today(), kategorie:'Getränkekarten-Verkauf', text:'Aufladung – '+k.name, karte:id, zahlart:z}));
+      toast(eur(w)+(mode==='alt'?' Restguthaben übernommen':' aufgeladen')+(mode==='0'?' – Zahlung offen':mode==='1'?' ('+zName(z)+')':'')); await loadAll(); openCard(id); }
+    else if (a==='pay-open'){ const sum=openPay()[id]||0; if (!sum) return;
+      if (!t.dataset.z){ t.insertAdjacentHTML('afterend', `<div class="stack" style="gap:6px"><b>${eur(sum)} erhalten – wie?</b><div class="row"><button class="btn primary" style="flex:1" data-act="pay-open" data-z="bar" data-id="${id}">Bar erhalten</button><button class="btn primary" style="flex:1" data-act="pay-open" data-z="paypal" data-id="${id}">Per PayPal erhalten</button></div></div>`); t.remove(); return; }
+      const z=t.dataset.z; t.disabled=true;
+      await q(sb.from('buchungen').update({bezahlt:true, zahlart:z}).eq('karte',id).eq('typ','auf').eq('bezahlt',false));
+      await q(sb.from('kasse').insert({typ:'ein', betrag:sum, datum:today(), kategorie:'Getränkekarten-Verkauf', text:'Nachzahlung Getränkekarte – '+k.name, karte:id, zahlart:z}));
+      toast(eur(sum)+' nachgebucht ('+zName(z)+')'); await loadAll(); openCard(id); }
     else if (a==='show-open'){ S.onlyOpen=true; S.tab='karten'; render(); scrollTo(0,0); }
     else if (a==='show-all'){ S.onlyOpen=false; renderKarten(); }
     else if (a==='deact') confirmDeact(id);
