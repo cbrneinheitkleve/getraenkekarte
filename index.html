@@ -186,6 +186,16 @@ div.item:hover{background:none}
 body.locked{overflow:hidden}
 .sheet .bd{position:absolute;inset:0;background:rgb(0 0 0 / .45)}
 .sheet .pn{position:relative;background:var(--surface);width:100%;max-width:720px;max-height:92%;max-height:calc(100dvh - env(safe-area-inset-top,0px) - 24px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;border-radius:18px 18px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px}
+details.group{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+details.group > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:16px;min-height:64px}
+details.group > summary::-webkit-details-marker{display:none}
+details.group > summary span{display:flex;flex-direction:column;gap:2px;min-width:0}
+details.group > summary b{font-family:var(--f-display);font-size:22px;letter-spacing:.01em}
+details.group > summary small{color:var(--muted);font-size:14px}
+details.group > summary::after{content:"";margin-left:auto;flex:none;width:10px;height:10px;border-right:2.5px solid var(--muted);border-bottom:2.5px solid var(--muted);transform:rotate(45deg);transition:transform .15s}
+details.group[open] > summary::after{transform:rotate(225deg)}
+details.group[open] > summary{border-bottom:1px solid var(--line)}
+.groupBody{padding:12px;background:var(--bg);border-radius:0 0 var(--r) var(--r)}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
 nav.tabs .in{max-width:720px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
 body.noKasse nav.tabs .in{grid-template-columns:repeat(3,1fr)}
@@ -375,15 +385,10 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
   </section>
 
   <section class="view" id="v-mehr" hidden>
-    <h2>Einstellungen</h2>
-    <form class="panel stack" id="cfgForm">
-      <div class="field"><label class="label" for="cfgEinheit">Name der Einheit</label><input id="cfgEinheit" maxlength="60"></div>
-      <div class="grid2">
-        <div class="field"><label class="label" for="cfgPreis">Abbuchung pro Getränk (€)</label><input id="cfgPreis" inputmode="decimal" class="num"></div>
-        <div class="field"><label class="label" for="cfgWert">Wert neuer Karten (€)</label><input id="cfgWert" inputmode="decimal" class="num"></div>
-      </div>
-      <button class="btn primary" type="submit">Speichern</button>
-    </form>
+    <h2>Mehr</h2>
+    <details class="group" id="grp-admin" data-grp="admin">
+      <summary><span><b>Admin</b><small>Admins anlegen, App-Link verschicken, Aussehen der Karte</small></span></summary>
+      <div class="stack groupBody">
     <div class="panel stack">
       <h3>Admins</h3>
       <p class="muted" style="margin:0">Wer hier steht, kann sich mit dieser E-Mail ein Konto erstellen und hat dann vollen Zugriff.</p>
@@ -396,18 +401,49 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
       <div class="linkbox" id="appLink"></div>
       <div class="row"><button class="btn primary" data-act="app-share" id="appShareBtn">Link teilen (WhatsApp …)</button><button class="btn" data-act="app-copy">Einladung kopieren</button><button class="btn" data-act="app-copy-link">Nur Link kopieren</button></div>
     </div>
-    <div class="panel stack">
-      <h3>Kassenbuch</h3>
-      <p class="muted" style="margin:0">Wer nur die Getränkekarten nutzt, kann den Reiter „Kasse“ ausblenden. Kartenverkäufe und Aufladungen werden trotzdem im Hintergrund mitgeschrieben und sind sofort wieder da, wenn du ihn einblendest.</p>
-      <label class="switch"><span><b>Reiter „Kasse“ ausblenden</b><br><span class="muted" style="font-size:14px">gilt für dieses Gerät</span></span><input type="checkbox" id="kasseAusSw"></label>
-    </div>
+    <details class="panel" id="lookPanel">
+      <summary><h3 style="display:inline">Aussehen der Karte</h3> <span class="muted" style="font-weight:400">– Logo und Farben</span></summary>
+      <div class="stack" style="margin-top:14px">
+      <div class="field"><span class="label">Logo</span>
+        <div class="logoRow"><img id="lookLogoPrev" alt="" hidden><label class="btn" for="lookLogo">Logo auswählen</label><input id="lookLogo" type="file" accept="image/*" hidden><button class="btn danger" type="button" id="lookLogoDel" hidden>Logo entfernen</button></div>
+        <small class="muted">Am besten PNG mit durchsichtigem Hintergrund. Erscheint auf jeder Karte, in der App und als Symbol auf dem Handy.</small></div>
+      <div class="field"><span class="label">Kartenfarbe</span><div class="swatches" id="swFarbe"></div></div>
+      <div class="field"><span class="label">Akzentfarbe (Streifen und Schrift)</span><div class="swatches" id="swAkzent"></div></div>
+      <span class="label">Vorschau</span>
+      <div id="lookPreview"></div>
+      <button class="btn primary" type="button" id="lookSave">Aussehen speichern</button>
+          </div>
+    </details>
+      </div>
+    </details>
+    <details class="group" id="grp-karte" data-grp="karte">
+      <summary><span><b>Karte</b><small>Name der Einheit, Beträge, Selbstbedienung per QR-Code</small></span></summary>
+      <div class="stack groupBody">
+    <form class="panel stack" id="cfgForm">
+      <h3>Einheit &amp; Beträge</h3>
+      <div class="field"><label class="label" for="cfgEinheit">Name der Einheit</label><input id="cfgEinheit" maxlength="60"></div>
+      <div class="grid2">
+        <div class="field"><label class="label" for="cfgPreis">Abbuchung pro Getränk (€)</label><input id="cfgPreis" inputmode="decimal" class="num"></div>
+        <div class="field"><label class="label" for="cfgWert">Wert neuer Karten (€)</label><input id="cfgWert" inputmode="decimal" class="num"></div>
+      </div>
+      <button class="btn primary" type="submit">Speichern</button>
+    </form>
     <div class="panel stack" id="selbstPanel">
       <h3>Selbstbedienung per QR-Code</h3>
       <p class="muted" style="margin:0">Ein QR-Code hängt am Getränkestand. Wer ein Getränk nimmt, scannt ihn mit dem eigenen Handy und bestätigt die Abbuchung von seiner Karte. Das Handy muss die Karte kennen, also den persönlichen Link einmal geöffnet haben.</p>
       <label class="switch"><span><b>Selbstbedienung eingeschaltet</b></span><input type="checkbox" id="selbstOn"></label>
       <button class="btn primary" data-tab="aushang">QR-Code-Aushang anzeigen &amp; drucken</button>
     </div>
-    <div class="panel stack" id="kryptoPanel"></div>
+      </div>
+    </details>
+    <details class="group" id="grp-kasse" data-grp="kasse">
+      <summary><span><b>Kasse</b><small>Kassenbuch, Bericht, Löschprotokoll, Export</small></span></summary>
+      <div class="stack groupBody">
+    <div class="panel stack">
+      <h3>Kassenbuch</h3>
+      <p class="muted" style="margin:0">Wer nur die Getränkekarten nutzt, kann den Reiter „Kasse“ ausblenden. Kartenverkäufe und Aufladungen werden trotzdem im Hintergrund mitgeschrieben und sind sofort wieder da, wenn du ihn einblendest.</p>
+      <label class="switch"><span><b>Reiter „Kasse“ ausblenden</b><br><span class="muted" style="font-size:14px">gilt für dieses Gerät</span></span><input type="checkbox" id="kasseAusSw"></label>
+    </div>
     <div class="panel stack">
       <h3>Bericht</h3>
       <p class="muted" style="margin:0">Kassenbericht für einen Monat, ein Jahr oder einen freien Zeitraum, mit Anfangs- und Endbestand, Einnahmen und Ausgaben nach Kategorie und allen Buchungen. Zum Ansehen, Drucken oder als PDF.</p>
@@ -423,18 +459,18 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
       <p class="muted" style="margin:0">Als CSV-Datei zum Öffnen in Excel.</p>
       <div class="row"><button class="btn" data-act="csv-kasse">Kassenbuch</button><button class="btn" data-act="csv-karten">Kartenbuchungen</button></div>
     </div>
-    <details class="panel" id="lookPanel">
-      <summary><h3 style="display:inline">Aussehen der Karte</h3> <span class="muted" style="font-weight:400">– Logo und Farben</span></summary>
-      <div class="stack" style="margin-top:14px">
-      <div class="field"><span class="label">Logo</span>
-        <div class="logoRow"><img id="lookLogoPrev" alt="" hidden><label class="btn" for="lookLogo">Logo auswählen</label><input id="lookLogo" type="file" accept="image/*" hidden><button class="btn danger" type="button" id="lookLogoDel" hidden>Logo entfernen</button></div>
-        <small class="muted">Am besten PNG mit durchsichtigem Hintergrund. Erscheint auf jeder Karte, in der App und als Symbol auf dem Handy.</small></div>
-      <div class="field"><span class="label">Kartenfarbe</span><div class="swatches" id="swFarbe"></div></div>
-      <div class="field"><span class="label">Akzentfarbe (Streifen und Schrift)</span><div class="swatches" id="swAkzent"></div></div>
-      <span class="label">Vorschau</span>
-      <div id="lookPreview"></div>
-      <button class="btn primary" type="button" id="lookSave">Aussehen speichern</button>
-          </div>
+      </div>
+    </details>
+    <details class="group" id="grp-app" data-grp="app">
+      <summary><span><b>App</b><small>Datenschutz</small></span></summary>
+      <div class="stack groupBody">
+    <div class="panel stack" id="kryptoPanel"></div>
+    <div class="panel stack">
+      <h3>Datenschutz &amp; Impressum</h3>
+      <p class="muted" style="margin:0">Die Seite mit allen Angaben zum Datenschutz. Sie ist für alle unten in der App verlinkt.</p>
+      <a class="btn" href="datenschutz.html">Datenschutz &amp; Impressum öffnen</a>
+    </div>
+      </div>
     </details>
     <div class="panel spread"><span class="muted" id="whoami"></span><button class="btn" data-act="logout">Abmelden</button></div>
   </section>
@@ -1702,6 +1738,9 @@ document.addEventListener('change', async ev=>{
   try{ await q(sb.from('config').update({selbstbedienung:on}).eq('id',1)); S.config.selbstbedienung=on; toast(on?'Selbstbedienung eingeschaltet':'Selbstbedienung ausgeschaltet'); }
   catch(e){ ev.target.checked=!on; if (/selbstbedienung/.test(e.message||'')) toast('Datenbank-Update fehlt: bitte update-selbstbedienung.sql ausführen.'); else fail(e); }
 });
+
+document.addEventListener('toggle', ev=>{ const d=ev.target; if (!d.dataset || !d.dataset.grp) return; try{ const o=JSON.parse(localStorage.getItem('cbrnGrp')||'{}'); o[d.dataset.grp]=d.open; localStorage.setItem('cbrnGrp', JSON.stringify(o)); }catch(e){} }, true);
+try{ const o=JSON.parse(localStorage.getItem('cbrnGrp')||'{}'); document.querySelectorAll('details.group').forEach(d=>{ if (o[d.dataset.grp]) d.open=true; }); }catch(e){}
 
 /* ---------- Start ---------- */
 $('#lForgot').addEventListener('click', async()=>{
