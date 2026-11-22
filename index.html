@@ -353,6 +353,11 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
       <label class="btn link" for="scanInput" style="align-self:flex-start">Kamera geht nicht? Foto vom Code machen</label>
       <input id="scanInput" type="file" accept="image/*" capture="environment" hidden>
     </div>
+    <div class="panel stack">
+      <h3>QR-Code für den Getränkestand</h3>
+      <p class="muted" style="margin:0">Aushang weg? Hier den Code zeigen – die Leute scannen ihn direkt von deinem Bildschirm. Abgebucht wird dabei von <b>deren</b> Karte, nicht von deiner.</p>
+      <button class="btn primary" data-act="zapf-qr">QR-Code anzeigen</button>
+    </div>
   </section>
 
   <!-- Bericht -->
@@ -1202,6 +1207,17 @@ function renderPlog(){
     return `<div class="item"><span class="date">${fmtTs(p.zeit).replace(', ','<br>')}</span><span class="t"><b>${was}</b><small>${p.karte?esc(plogKarte(p))+' · ':''}von ${esc(p.admin||'unbekannt')}</small><small>Grund: ${p.grund?esc(p.grund):'<i>ohne Angabe</i>'}</small></span><span class="amt">${p.betrag!=null?eur(p.betrag):''}</span></div>`; }).join('')}</div>`;
 }
 
+function zapfQrSheet(){
+  camStop();
+  openSheet(`${sheetHead('Getränkestand')}
+    ${S.config.selbstbedienung?'':'<div class="notice"><b>Die Selbstbedienung ist ausgeschaltet.</b> Wer scannt, bekommt nur einen Hinweis. Einschalten unter Mehr → Karte.</div>'}
+    <div class="poster" style="padding:20px 16px;gap:10px"><div class="stripe"></div><h1 style="font-size:34px">Getränk genommen?<br>Hier scannen!</h1>
+      <canvas id="zapfQR" aria-label="QR-Code Selbstbedienung"></canvas><div class="price">${eur(S.config.preis)} pro Getränk</div><div class="stripe"></div></div>
+    <div class="row"><button class="btn" data-act="zapf-qr-aushang">Aushang drucken / als Bild</button></div>`, {kind:'zapfqr'});
+  drawQR($('#zapfQR'), zapfURL(), 720);
+  if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l=>{ S.wake=l; }).catch(()=>{});
+}
+
 /* ---------- Storno (nur Admins) ---------- */
 // passende Einnahme im Kassenbuch zu einer Aufladung: eindeutige Zuordnung je Karte
 // (gleicher Betrag, gleiche Zahlungsart, Einnahme nicht vor der Aufladung, zeitlich nächste zuerst)
@@ -1320,7 +1336,7 @@ async function posterPNG(){
 
 /* ---------- Sheets ---------- */
 function openSheet(html, meta){ const pn=$('#sheetPanel'), keep=!$('#sheet').hidden && S.sheet && meta && S.sheet.kind===meta.kind && S.sheet.id===meta.id ? pn.scrollTop : 0; S.sheet=meta||{kind:'form'}; pn.innerHTML=html; $('#sheet').hidden=false; document.body.classList.add('locked'); pn.scrollTop=keep; }
-function closeSheet(){ if (typeof hScanStop==='function') hScanStop(); document.body.classList.remove('locked'); $('#sheet').hidden=true; $('#sheetPanel').innerHTML=''; S.sheet=null; }
+function closeSheet(){ if (typeof hScanStop==='function') hScanStop(); if (S.wake){ try{ S.wake.release(); }catch(e){} S.wake=null; } document.body.classList.remove('locked'); $('#sheet').hidden=true; $('#sheetPanel').innerHTML=''; S.sheet=null; }
 const sheetHead = t => `<div class="spread"><h2>${t}</h2><button class="btn" data-act="close">Schließen</button></div>`;
 
 function entryForm(pre){
@@ -1615,6 +1631,8 @@ document.addEventListener('click', async ev=>{
     else if (a==='save-img'){ const blob=await cardImage(k), file=new File([blob],'Getraenkekarte-'+k.code+'.png',{type:'image/png'});
       if (navigator.canShare && navigator.canShare({files:[file]})) { try{ await navigator.share({files:[file], text:shareText(k)}); markSent(id); }catch(e){} } else { download(blob, file.name); markSent(id); } }
     else if (a==='sent-off') confirmDeact(id);
+    else if (a==='zapf-qr') zapfQrSheet();
+    else if (a==='zapf-qr-aushang'){ closeSheet(); S.tab='aushang'; render(); scrollTo(0,0); }
     else if (a==='plog-reload'){ S.plog=undefined; renderPlog(); }
     else if (a==='csv-protokoll'){ if (!S.plog){ toast('Protokoll ist noch nicht geladen.'); return; } const qv=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
       const rows=[['Zeitpunkt','Admin','Bereich','Karte','Betrag','Grund','Details']].concat(S.plog.map(p=>[fmtTs(p.zeit),p.admin,p.bereich,p.karte?plogKarte(p):'',p.betrag!=null?(p.betrag/100).toFixed(2).replace('.',','):'',p.grund,JSON.stringify(p.details||{})]));
