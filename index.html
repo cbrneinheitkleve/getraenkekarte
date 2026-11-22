@@ -370,6 +370,12 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
       <form class="row" id="adminForm"><input id="adminEmail" class="inp" style="flex:1;min-width:0" type="email" placeholder="E-Mail" required><button class="btn" type="submit">Hinzufügen</button></form>
     </div>
     <div class="panel stack">
+      <h3>App-Link verschicken</h3>
+      <p class="muted" style="margin:0">Für neue Admins oder andere Geräte. Karteninhaber brauchen diesen Link nicht – sie bekommen ihren persönlichen Karten-Link.</p>
+      <div class="linkbox" id="appLink"></div>
+      <div class="row"><button class="btn primary" data-act="app-share" id="appShareBtn">Link teilen (WhatsApp …)</button><button class="btn" data-act="app-copy">Einladung kopieren</button><button class="btn" data-act="app-copy-link">Nur Link kopieren</button></div>
+    </div>
+    <div class="panel stack">
       <h3>Kassenbuch</h3>
       <p class="muted" style="margin:0">Wer nur die Getränkekarten nutzt, kann den Reiter „Kasse“ ausblenden. Kartenverkäufe und Aufladungen werden trotzdem im Hintergrund mitgeschrieben und sind sofort wieder da, wenn du ihn einblendest.</p>
       <label class="switch"><span><b>Reiter „Kasse“ ausblenden</b><br><span class="muted" style="font-size:14px">gilt für dieses Gerät</span></span><input type="checkbox" id="kasseAusSw"></label>
@@ -757,6 +763,8 @@ function renderCfg(){
   const me = (S.session?.user?.email||'').toLowerCase();
   $('#whoami').textContent = 'Angemeldet als ' + (S.session?.user?.email||'');
   renderKryptoPanel();
+  if ($('#appLink')) $('#appLink').textContent = APP_URL;
+  if ($('#appShareBtn')) $('#appShareBtn').hidden = !navigator.share;
   $('#adminList').innerHTML = S.admins.map(a=>`<div class="spread"><span>${esc(a.email)}</span>${a.email.toLowerCase()===me?'<span class="muted">du</span>':`<button class="btn danger" data-act="del-admin" data-id="${esc(a.email)}">Entfernen</button>`}</div>`).join('');
 }
 
@@ -1417,6 +1425,8 @@ function saveCSV(kind){
     [...S.buch].sort((a,b)=>a.created_at.localeCompare(b.created_at)).forEach(b=>rows.push([fmtTs(b.created_at),b.karte,byCode[b.karte]?.name,klar(byCode[b.karte])||'',b.typ==='auf'?'Aufladung':'Abbuchung',b.anzahl,(b.typ==='auf'?'':'-')+n(b.betrag),b.von])); }
   download(new Blob(['﻿'+rows.map(r=>r.map(qv).join(';')).join('\r\n')],{type:'text/csv'}), (kind==='kasse'?'Kassenbuch':'Kartenbuchungen')+'-'+today()+'.csv');
 }
+const APP_URL = BASE.replace(/index\.html$/,'');
+const appInvite = () => `Hallo, hier ist die Getränkekasse der ${S.config.einheit||'Sondereinheit CBRN'}:\n${APP_URL}\n\nSo wirst du Admin:\n1. Link öffnen und auf „Noch kein Konto? Konto erstellen“ tippen.\n2. Mit der E-Mail-Adresse registrieren, die ich für dich eingetragen habe, und ein eigenes Passwort wählen.\n3. Tipp: Über „Teilen“ bzw. ⋮ → „Zum Startbildschirm hinzufügen“ liegt die App als Symbol auf dem Handy.`;
 async function copy(text){
   try{ await navigator.clipboard.writeText(text); toast('Kopiert – jetzt in WhatsApp einfügen'); return true; }
   catch(e){
@@ -1452,6 +1462,9 @@ document.addEventListener('click', async ev=>{
     else if (a==='save-img'){ const blob=await cardImage(k), file=new File([blob],'Getraenkekarte-'+k.code+'.png',{type:'image/png'});
       if (navigator.canShare && navigator.canShare({files:[file]})) { try{ await navigator.share({files:[file], text:shareText(k)}); markSent(id); }catch(e){} } else { download(blob, file.name); markSent(id); } }
     else if (a==='sent-off') confirmDeact(id);
+    else if (a==='app-share'){ try{ await navigator.share({title:'Getränkekasse', text:appInvite()}); }catch(e){} }
+    else if (a==='app-copy') copy(appInvite());
+    else if (a==='app-copy-link') copy(APP_URL);
     else if (a==='my-card'){ closeSheet(); camStop(); S.wantCard=true; S.mode='holder'; S.holderLoaded=false; await loadHolder(); scrollTo(0,0); }
     else if (a==='hscan') hScanOpen();
     else if (a==='storno') stornoSheet(id);
