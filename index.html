@@ -607,7 +607,7 @@ function applyBrand(){
 
 let toastT;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2800); }
-function fail(e, what){ console.warn(e); if (/loeschen|protokoll/.test(e&&e.message||'') && /function|schema|relation|exist/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-protokoll.sql ausführen.'); if (/permission denied/i.test(e&&e.message||'')) return toast('Löschen ist gesperrt – bitte die neue App-Version laden.'); if (/Löschgrund/.test(e&&e.message||'')) return toast('Bitte einen Löschgrund angeben.'); if (/zahlart/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-zahlart.sql ausführen.'); if (/freigegeben|wahl|karte_entscheidung/.test(e&&e.message||'') && /column|schema|function/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-entscheidung.sql ausführen.'); if (/einwilligung/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-einwilligung.sql ausführen.'); if (/name_enc|krypto/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-pseudonyme.sql ausführen.'); if (/bezahlt/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-zahlungen.sql ausführen.'); toast((what||'Speichern')+' fehlgeschlagen' + (e && e.message ? ': '+e.message : '')); }
+function fail(e, what){ console.warn(e); if (/loeschen|protokoll/.test(e&&e.message||'') && /function|schema|relation|exist/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-protokoll.sql ausführen.'); if (/permission denied/i.test(e&&e.message||'')) return toast('Löschen ist gesperrt – bitte die neue App-Version laden.'); if (/Löschgrund/.test(e&&e.message||'')) return toast('Bitte einen Löschgrund angeben.'); if (/nicht entfernt werden/.test(e&&e.message||'')) return toast('Dieser Admin kann nicht entfernt werden.'); if (/zahlart/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-zahlart.sql ausführen.'); if (/freigegeben|wahl|karte_entscheidung/.test(e&&e.message||'') && /column|schema|function/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-entscheidung.sql ausführen.'); if (/einwilligung/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-einwilligung.sql ausführen.'); if (/name_enc|krypto/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-pseudonyme.sql ausführen.'); if (/bezahlt/.test(e&&e.message||'') && /column|schema/i.test(e.message)) return toast('Datenbank-Update fehlt: bitte update-zahlungen.sql ausführen.'); toast((what||'Speichern')+' fehlgeschlagen' + (e && e.message ? ': '+e.message : '')); }
 async function q(p){ const {data, error} = await p; if (error) throw error; return data; }
 
 /* ---------- Berechnungen ---------- */
@@ -852,7 +852,15 @@ function renderCfg(){
   renderKryptoPanel();
   if ($('#appLink')) $('#appLink').textContent = APP_URL;
   if ($('#appShareBtn')) $('#appShareBtn').hidden = !navigator.share;
-  $('#adminList').innerHTML = S.admins.map(a=>`<div class="spread"><span>${esc(a.email)}<br>${stat(a)}</span>${a.email.toLowerCase()===me?'':`<button class="btn danger" data-act="del-admin" data-id="${esc(a.email)}">Entfernen</button>`}</div>`).join('');
+  const ichGesch = !!(S.admins.find(a=>a.email.toLowerCase()===me)||{}).geschuetzt, nGesch = S.admins.filter(a=>a.geschuetzt).length;
+  $('#adminList').innerHTML = S.admins.map(a=>{ const ich=a.email.toLowerCase()===me, g=!!a.geschuetzt;
+    const tag = ichGesch && g ? ' <span class="muted" style="font-size:13px">· geschützt</span>' : '';
+    let btns = '';
+    if (!ich && !g) btns += `<button class="btn danger" data-act="del-admin" data-id="${esc(a.email)}">Entfernen</button>`;
+    if (ichGesch && !ich && !g) btns += `<button class="btn link" data-act="schutz" data-on="1" data-id="${esc(a.email)}">Schutz geben</button>`;
+    if (ichGesch && g && nGesch>1) btns += `<button class="btn link" data-act="schutz" data-on="0" data-id="${esc(a.email)}">${ich?'Eigenen Schutz aufheben':'Schutz entfernen'}</button>`;
+    return `<div class="spread"><span>${esc(a.email)}${tag}<br>${stat(a)}</span><span class="row" style="gap:4px;justify-content:flex-end">${btns}</span></div>`; }).join('')
+    + (ichGesch ? `<p class="muted" style="margin:0;font-size:13px">Nur für dich sichtbar: Geschützte Admins können von niemandem entfernt werden. Den Schutz kannst du an andere Admins weitergeben.</p>` : '');
 }
 
 /* ---------- Bericht ---------- */
@@ -1631,6 +1639,9 @@ document.addEventListener('click', async ev=>{
     else if (a==='save-img'){ const blob=await cardImage(k), file=new File([blob],'Getraenkekarte-'+k.code+'.png',{type:'image/png'});
       if (navigator.canShare && navigator.canShare({files:[file]})) { try{ await navigator.share({files:[file], text:shareText(k)}); markSent(id); }catch(e){} } else { download(blob, file.name); markSent(id); } }
     else if (a==='sent-off') confirmDeact(id);
+    else if (a==='schutz'){ const on=t.dataset.on==='1'; if (!confirm2(on?'Wirklich Schutz geben?':'Wirklich Schutz entfernen?')) return;
+      try{ await q(sb.rpc('schutz_setzen',{p_email:id, p_an:on})); toast(on?'Schutz vergeben':'Schutz entfernt'); loadAll(); }
+      catch(e){ toast(/Mindestens/.test(e.message||'')?'Mindestens ein Admin muss geschützt bleiben.':/schutz_setzen|function/i.test(e.message||'')?'Datenbank-Update fehlt: bitte update-schutz.sql ausführen.':'Nicht möglich.'); } }
     else if (a==='zapf-qr') zapfQrSheet();
     else if (a==='zapf-qr-aushang'){ closeSheet(); S.tab='aushang'; render(); scrollTo(0,0); }
     else if (a==='plog-reload'){ S.plog=undefined; renderPlog(); }
