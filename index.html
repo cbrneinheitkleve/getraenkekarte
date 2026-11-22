@@ -58,6 +58,11 @@ header.top .wrap{display:flex;align-items:center;gap:12px;padding-block:10px}
 .brand span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
 .role{margin-left:auto;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
 .myCard{min-height:38px;padding:6px 12px;font-size:14px;flex:none}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--pos);margin-right:6px;vertical-align:middle;box-shadow:0 0 0 3px color-mix(in srgb,var(--pos) 22%,transparent)}
+.online{font-size:12px;color:var(--pos);font-weight:600;white-space:nowrap}
+#onlineLbl{margin-left:auto;flex:none}
+header.top .brand{flex:1 1 auto}
+.brand span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 main{padding-block:16px 24px}
 .view{display:flex;flex-direction:column;gap:16px}
 h2{font-family:var(--f-display);font-size:26px;margin:0;letter-spacing:.01em}
@@ -251,6 +256,7 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
   <div class="badge" aria-hidden="true">CBRN</div>
   <div class="brand"><b id="brandName">Getränkekasse</b><span id="unitName">CBRN-Einheit</span></div>
   <div class="role" id="roleLbl"></div>
+  <span class="online" id="onlineLbl" data-tab="mehr" role="button" tabindex="0" style="cursor:pointer" hidden></span>
   <button class="btn myCard" id="myCardBtn" data-act="my-card" hidden>Meine Karte</button>
 </div></header>
 
@@ -594,6 +600,7 @@ function render(){
   $('#tabs').hidden = !admin; document.body.classList.toggle('noTabs', !admin);
   $('#roleLbl').textContent = admin ? 'Admin' : '';
   $('#myCardBtn').hidden = !(admin && S.holder);
+  if (typeof renderOnline==='function') renderOnline();
   const karteSicht = S.mode==='holder' || S.mode==='zapf' || (S.mode==='loading' && /[?&]k=/.test(location.search));
   $('#brandName').textContent = karteSicht ? 'Getränkekarte' : 'Getränkekasse';
   document.title = karteSicht ? 'Getränkekarte' : 'CBRN Getränkekasse';
@@ -761,11 +768,13 @@ function renderCfg(){
   }
   if (!look.dirty) { look.farbe=themeOf(S.config).farbe; look.akzent=themeOf(S.config).akzent; look.logo=themeOf(S.config).logo; renderLook(); }
   const me = (S.session?.user?.email||'').toLowerCase();
+  const stat = a => { if (a.email.toLowerCase()===me) return '<span class="muted">du</span>'; if (!a.zuletzt_aktiv) return '<span class="muted">noch nie aktiv</span>';
+    const t=new Date(a.zuletzt_aktiv).getTime(); return isOnline(a) ? '<span class="online"><span class="dot"></span>online</span>' : `<span class="muted">zuletzt ${seit(t)}</span>`; };
   $('#whoami').textContent = 'Angemeldet als ' + (S.session?.user?.email||'');
   renderKryptoPanel();
   if ($('#appLink')) $('#appLink').textContent = APP_URL;
   if ($('#appShareBtn')) $('#appShareBtn').hidden = !navigator.share;
-  $('#adminList').innerHTML = S.admins.map(a=>`<div class="spread"><span>${esc(a.email)}</span>${a.email.toLowerCase()===me?'<span class="muted">du</span>':`<button class="btn danger" data-act="del-admin" data-id="${esc(a.email)}">Entfernen</button>`}</div>`).join('');
+  $('#adminList').innerHTML = S.admins.map(a=>`<div class="spread"><span>${esc(a.email)}<br>${stat(a)}</span>${a.email.toLowerCase()===me?'':`<button class="btn danger" data-act="del-admin" data-id="${esc(a.email)}">Entfernen</button>`}</div>`).join('');
 }
 
 /* ---------- Bericht ---------- */
@@ -893,7 +902,7 @@ async function decideMode(){
       else { try{ history.replaceState(null,'',BASE); }catch(e){} } } else render(); return; }
   if (session){
     let ok=false; try{ ok = await q(sb.rpc('is_admin')); }catch(e){ console.warn(e); }
-    if (ok){ S.isAdmin=true; if (S.holder && S.wantCard){ S.mode='holder'; render(); await loadHolder(); return; } S.mode='admin'; render(); await loadAll(); return; }
+    if (ok){ S.isAdmin=true; if (S.holder && S.wantCard){ S.mode='holder'; render(); await loadHolder(); return; } S.mode='admin'; render(); await loadAll(); heartbeat(); return; }
     if (!S.holder || S.forceLogin){ S.mode='noadmin'; render(); return; }
   }
   if (S.holder && !S.forceLogin){ S.mode='holder'; render(); await loadHolder(); return; }
@@ -1077,6 +1086,27 @@ function hHandle(raw, fromPhoto){
   if (raw){ const m=$('#hScanMsg'); if (m) m.innerHTML='<b>Das ist nicht der Code vom Getränkestand.</b> Bitte den Aushang „Getränk genommen? Hier scannen!“ scannen.'; }
   else if (fromPhoto){ const m=$('#hScanMsg'); if (m) m.textContent='Kein QR-Code erkannt. Bitte näher ran und scharf fotografieren.'; }
   return false;
+}
+
+/* ---------- Admins online ---------- */
+const ONLINE_MS = 2.5*60*1000;
+const isOnline = a => a && a.zuletzt_aktiv && Date.now()-new Date(a.zuletzt_aktiv).getTime() < ONLINE_MS;
+function seit(t){ const m=Math.round((Date.now()-t)/60000); if (m<60) return 'vor '+Math.max(m,1)+' Min.'; const h=Math.round(m/60); if (h<24) return 'vor '+h+' Std.';
+  return 'am '+new Date(t).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})+' um '+new Date(t).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}); }
+function renderOnline(){
+  const el=$('#onlineLbl'); if (!el) return;
+  const me=(S.session?.user?.email||'').toLowerCase();
+  const others=(S.admins||[]).filter(a=>a.email.toLowerCase()!==me && isOnline(a));
+  el.hidden = S.mode!=='admin' || !others.length;
+  const rl=$('#roleLbl'); if (rl) rl.hidden = !el.hidden;
+  el.innerHTML = others.length ? `<span class="dot"></span>${others.length===1?'Admin online':others.length+' Admins online'}` : '';
+  el.title = others.map(a=>a.email).join(', ') + ' – tippen für Details';
+}
+let beatT=null;
+async function heartbeat(){
+  clearTimeout(beatT); if (S.mode!=='admin' || document.visibilityState!=='visible') return;
+  try{ await sb.rpc('admin_lebenszeichen'); const ad = await q(sb.from('admins').select('*')); S.admins=ad; renderOnline(); if (S.tab==='mehr') renderCfg(); }catch(e){ console.warn(e); }
+  beatT=setTimeout(heartbeat, 60000);
 }
 
 /* ---------- Storno (nur Admins) ---------- */
@@ -1555,7 +1585,7 @@ $('#loginForm').addEventListener('submit', async ev=>{
     $('#loginMsg').innerHTML = `<div class="notice">${esc(m)}</div>`;
   }finally{ btn.disabled=false; }
 });
-document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState==='visible'){ if (S.mode==='admin') loadAll(); else if (S.mode==='holder') loadHolder(); } else { camStop(); if (hStream) closeSheet(); } });
+document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState==='visible'){ if (S.mode==='admin'){ loadAll(); heartbeat(); } else if (S.mode==='holder') loadHolder(); } else { camStop(); if (hStream) closeSheet(); } });
 
 $('#lookLogo').addEventListener('change', async()=>{
   const f=$('#lookLogo').files[0]; $('#lookLogo').value=''; if(!f) return;
