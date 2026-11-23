@@ -248,30 +248,26 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
 .switch{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .switch input{width:52px;height:30px;accent-color:var(--primary)}
 .poster{background:#fff;color:#000;border:1px solid var(--line);border-radius:16px;padding:28px 22px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;max-width:560px;margin:0 auto}
-.poster .stripe{align-self:stretch;height:14px;border-radius:4px;background:repeating-linear-gradient(-45deg,#F2B705 0 14px,#111 14px 28px)}
+.poster .stripe{align-self:stretch;height:14px;border-radius:4px;background:#F2B705 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28'%3E%3Crect width='28' height='28' fill='%23F2B705'/%3E%3Cpath d='M14 0h14L0 28V14zM28 14v14H14z' fill='%23111'/%3E%3C/svg%3E") repeat-x left center/14px 14px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .poster h1{font-family:var(--f-display);font-size:44px;line-height:1;margin:6px 0 0}
 .poster .sub{font-size:18px;color:#333}
 .poster canvas{width:100%;max-width:360px;height:auto;image-rendering:pixelated}
 .poster ol{text-align:left;font-size:17px;line-height:1.5;margin:0;padding-left:22px;max-width:420px}
 .poster .price{font-family:var(--f-mono);font-size:22px;font-weight:600}
 .poster .logo{max-height:80px;max-width:160px;object-fit:contain}
-.poster .pbody{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:14px 28px;align-self:stretch}
-.poster .ptext{display:flex;flex-direction:column;align-items:center;gap:12px;flex:1 1 220px}
-.poster .pbody canvas{flex:0 1 360px}
+.poster .pbody{display:flex;flex-direction:column;align-items:center;gap:14px;align-self:stretch}
 @media print{
   footer.copy{padding:12px 0 0;font-size:10px}
   #v-aushang .poster{border:0;max-width:none;padding:0}
-  @page quer{size:A5 landscape;margin:7mm}
-  #poster{page:quer;break-inside:avoid;gap:4mm;height:133mm;justify-content:space-between}
-  #poster .pbody{flex-wrap:nowrap;gap:8mm;flex:1;min-height:0}
-  #poster .pbody canvas{flex:0 0 auto;width:104mm;max-width:none;height:104mm}
-  #poster .ptext{flex:1 1 auto}
+  @page aushang{size:A5 portrait;margin:7mm}
   body.printPoster main,body.printPoster #v-aushang,body.printPoster #posterBox{max-width:none!important;width:auto;margin:0;padding:0}
-  #poster{width:196mm;box-sizing:border-box}
-  #poster h1{font-size:36pt}
+  #poster{page:aushang;break-inside:avoid;width:134mm;height:194mm;box-sizing:border-box;gap:3mm;justify-content:space-between}
+  #poster .stripe{height:6mm;background-size:6mm 6mm}
+  #poster .pbody{gap:4mm}
+  #poster .pbody canvas{width:112mm;max-width:none;height:112mm}
+  #poster h1{font-size:30pt}
   #poster .label{font-size:10pt}
-  #poster .price{font-size:21pt;white-space:nowrap}
-  #poster .stripe{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #poster .price{font-size:20pt;white-space:nowrap}
   body.printPoster footer.copy{display:none}
   :root{--bg:#fff;--surface:#fff;--sunk:#f2f2f2;--ink:#000;--muted:#444;--line:#bbb;--pos:#000;--neg:#000;color-scheme:light}
   header.top,nav.tabs,.noprint,.toast,.sheet,body::before{display:none!important}
@@ -1342,26 +1338,26 @@ async function zapfGo(bewusst){
 function renderPoster(){
   const th=themeOf(S.config);
   $('#posterBox').innerHTML = `<div class="poster" id="poster"><div class="stripe"></div>
-    <div class="pbody"><canvas id="posterQR" aria-label="QR-Code Selbstbedienung"></canvas>
-    <div class="ptext">${th.logo?`<img class="logo" src="${th.logo}" alt="">`:''}
+    <div class="pbody">${th.logo?`<img class="logo" src="${th.logo}" alt="">`:''}
     <div class="label" style="color:#555">${esc(S.config.einheit||'')}</div>
     <h1>Getränk genommen?<br>Hier scannen!</h1>
-    <div class="price">${eur(S.config.preis)} pro Getränk</div></div></div>
+    <canvas id="posterQR" aria-label="QR-Code Selbstbedienung"></canvas>
+    <div class="price">${eur(S.config.preis)} pro Getränk</div></div>
     <div class="stripe"></div></div>
     ${S.config.selbstbedienung?'':'<div class="notice noprint" style="margin-top:12px">Die Selbstbedienung ist noch ausgeschaltet. Schalte sie unter Mehr ein, bevor du den Aushang aufhängst.</div>'}
     <p class="muted noprint" style="text-align:center;font-size:13px">Der QR-Code führt zu: ${esc(zapfURL())}</p>`;
   drawZapfQR($('#posterQR'), 720);
 }
 async function posterPNG(){
-  const W=1754,H=1240,c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
+  const W=1240,H=1754,c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
   x.fillStyle='#fff'; x.fillRect(0,0,W,H);
-  const stripe=y=>{ x.save(); x.beginPath(); x.rect(80,y,W-160,36); x.clip(); for(let i=40;i<W+80;i+=72){ x.fillStyle='#F2B705'; x.beginPath(); x.moveTo(i,y); x.lineTo(i+36,y); x.lineTo(i,y+36); x.lineTo(i-36,y+36); x.fill(); x.fillStyle='#111'; x.beginPath(); x.moveTo(i+36,y); x.lineTo(i+72,y); x.lineTo(i+36,y+36); x.lineTo(i,y+36); x.fill(); } x.restore(); };
-  stripe(70); stripe(H-106);
-  const Q=900, qy=(H-Q)/2; const q=document.createElement('canvas'); await drawZapfQR(q, Q); x.imageSmoothingEnabled=false; x.drawImage(q,110,qy,Q,Q);
-  const cx=110+Q+(W-110-Q-80)/2; x.textAlign='center';
-  x.fillStyle='#555'; x.font='600 34px Barlow, sans-serif'; x.fillText((S.config.einheit||'').toUpperCase(), cx, 430);
-  x.fillStyle='#000'; x.font='700 96px "Barlow Condensed", Arial Narrow, sans-serif'; x.fillText('Getränk', cx, 540); x.fillText('genommen?', cx, 640); x.fillText('Hier scannen!', cx, 760);
-  x.font='600 56px "IBM Plex Mono", monospace'; x.fillText(eur(S.config.preis)+' pro Getränk', cx, 880);
+  const stripe=y=>{ x.save(); x.beginPath(); x.rect(70,y,W-140,44); x.clip(); x.fillStyle='#F2B705'; x.fillRect(70,y,W-140,44); x.fillStyle='#111'; for(let i=0;i<W+88;i+=88){ x.beginPath(); x.moveTo(i+44,y); x.lineTo(i+88,y); x.lineTo(i+44,y+44); x.lineTo(i,y+44); x.fill(); } x.restore(); };
+  stripe(60); stripe(H-104);
+  x.textAlign='center';
+  x.fillStyle='#555'; x.font='600 34px Barlow, sans-serif'; x.fillText((S.config.einheit||'').toUpperCase(), W/2, 180);
+  x.fillStyle='#000'; x.font='700 100px "Barlow Condensed", Arial Narrow, sans-serif'; x.fillText('Getränk genommen?', W/2, 290); x.fillText('Hier scannen!', W/2, 395);
+  const Q=980; const q=document.createElement('canvas'); await drawZapfQR(q, Q); x.imageSmoothingEnabled=false; x.drawImage(q,(W-Q)/2,440,Q,Q);
+  x.fillStyle='#000'; x.font='600 64px "IBM Plex Mono", monospace'; x.fillText(eur(S.config.preis)+' pro Getränk', W/2, 1530);
   const blob=await new Promise(r=>c.toBlob(r,'image/png')); download(blob,'Aushang-Selbstbedienung.png');
 }
 
