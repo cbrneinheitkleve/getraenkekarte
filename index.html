@@ -1338,7 +1338,7 @@ async function zapfGo(bewusst){
 function renderPoster(){
   const th=themeOf(S.config);
   $('#posterBox').innerHTML = `<div class="poster" id="poster"><div class="stripe"></div>
-    <div class="pbody">${th.logo?`<img class="logo" src="${th.logo}" alt="">`:''}
+    <div class="pbody">
     <div class="label" style="color:#555">${esc(S.config.einheit||'')}</div>
     <h1>Getränk genommen?<br>Hier scannen!</h1>
     <canvas id="posterQR" aria-label="QR-Code Selbstbedienung"></canvas>
