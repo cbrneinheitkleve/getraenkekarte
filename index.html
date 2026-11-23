@@ -255,9 +255,23 @@ footer.copy{padding-block:8px 20px;text-align:center;font-size:12px;line-height:
 .poster ol{text-align:left;font-size:17px;line-height:1.5;margin:0;padding-left:22px;max-width:420px}
 .poster .price{font-family:var(--f-mono);font-size:22px;font-weight:600}
 .poster .logo{max-height:80px;max-width:160px;object-fit:contain}
+.poster .pbody{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:14px 28px;align-self:stretch}
+.poster .ptext{display:flex;flex-direction:column;align-items:center;gap:12px;flex:1 1 220px}
+.poster .pbody canvas{flex:0 1 360px}
 @media print{
   footer.copy{padding:12px 0 0;font-size:10px}
   #v-aushang .poster{border:0;max-width:none;padding:0}
+  @page quer{size:A4 landscape;margin:10mm}
+  #poster{page:quer;break-inside:avoid;gap:6mm;height:186mm;justify-content:space-between}
+  #poster .pbody{flex-wrap:nowrap;gap:12mm;flex:1;min-height:0}
+  #poster .pbody canvas{flex:0 0 auto;width:140mm;max-width:none;height:140mm}
+  #poster .ptext{flex:1 1 auto}
+  body.printPoster main,body.printPoster #v-aushang,body.printPoster #posterBox{max-width:none!important;width:auto;margin:0;padding:0}
+  #poster{width:277mm;box-sizing:border-box}
+  #poster h1{font-size:50pt}
+  #poster .label{font-size:14pt}
+  #poster .price{font-size:30pt;white-space:nowrap}
+  #poster .stripe{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   body.printPoster footer.copy{display:none}
   :root{--bg:#fff;--surface:#fff;--sunk:#f2f2f2;--ink:#000;--muted:#444;--line:#bbb;--pos:#000;--neg:#000;color-scheme:light}
   header.top,nav.tabs,.noprint,.toast,.sheet,body::before{display:none!important}
@@ -1328,29 +1342,26 @@ async function zapfGo(bewusst){
 function renderPoster(){
   const th=themeOf(S.config);
   $('#posterBox').innerHTML = `<div class="poster" id="poster"><div class="stripe"></div>
-    ${th.logo?`<img class="logo" src="${th.logo}" alt="">`:''}
+    <div class="pbody"><canvas id="posterQR" aria-label="QR-Code Selbstbedienung"></canvas>
+    <div class="ptext">${th.logo?`<img class="logo" src="${th.logo}" alt="">`:''}
     <div class="label" style="color:#555">${esc(S.config.einheit||'')}</div>
     <h1>Getränk genommen?<br>Hier scannen!</h1>
-    <canvas id="posterQR" aria-label="QR-Code Selbstbedienung"></canvas>
-    <ol><li>QR-Code mit der Handy-Kamera scannen.</li><li>Fertig – ein Getränk wird sofort von deiner Karte abgebucht.</li><li>Mehr genommen? Auf „Noch ein Getränk“ tippen.</li></ol>
-    <div class="price">${eur(S.config.preis)} pro Getränk</div>
-    <div class="sub" style="font-size:14px">Mit der Handy-Kamera oder in deiner geöffneten Getränkekarte über „Code scannen“.</div>
+    <div class="price">${eur(S.config.preis)} pro Getränk</div></div></div>
     <div class="stripe"></div></div>
     ${S.config.selbstbedienung?'':'<div class="notice noprint" style="margin-top:12px">Die Selbstbedienung ist noch ausgeschaltet. Schalte sie unter Mehr ein, bevor du den Aushang aufhängst.</div>'}
     <p class="muted noprint" style="text-align:center;font-size:13px">Der QR-Code führt zu: ${esc(zapfURL())}</p>`;
   drawZapfQR($('#posterQR'), 720);
 }
 async function posterPNG(){
-  const W=1240,H=1754,c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
+  const W=1754,H=1240,c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
   x.fillStyle='#fff'; x.fillRect(0,0,W,H);
   const stripe=y=>{ x.save(); x.beginPath(); x.rect(80,y,W-160,36); x.clip(); for(let i=40;i<W+80;i+=72){ x.fillStyle='#F2B705'; x.beginPath(); x.moveTo(i,y); x.lineTo(i+36,y); x.lineTo(i,y+36); x.lineTo(i-36,y+36); x.fill(); x.fillStyle='#111'; x.beginPath(); x.moveTo(i+36,y); x.lineTo(i+72,y); x.lineTo(i+36,y+36); x.lineTo(i,y+36); x.fill(); } x.restore(); };
-  stripe(80); stripe(H-116);
-  x.textAlign='center'; x.fillStyle='#555'; x.font='600 34px Barlow, sans-serif'; x.fillText((S.config.einheit||'').toUpperCase(), W/2, 190);
-  x.fillStyle='#000'; x.font='700 104px "Barlow Condensed", Arial Narrow, sans-serif'; x.fillText('Getränk genommen?', W/2, 310); x.fillText('Hier scannen!', W/2, 420);
-  const q=document.createElement('canvas'); await drawZapfQR(q, 760); x.imageSmoothingEnabled=false; x.drawImage(q,(W-760)/2,470,760,760);
-  x.font='500 40px Barlow, sans-serif'; x.fillStyle='#111';
-  ['1. QR-Code mit der Handy-Kamera scannen','2. Fertig – ein Getränk wird sofort abgebucht','3. Mehr genommen? „Noch ein Getränk“ tippen'].forEach((t,i)=>x.fillText(t, W/2, 1320+i*62));
-  x.font='600 52px "IBM Plex Mono", monospace'; x.fillText(eur(S.config.preis)+' pro Getränk', W/2, 1560);
+  stripe(70); stripe(H-106);
+  const Q=900, qy=(H-Q)/2; const q=document.createElement('canvas'); await drawZapfQR(q, Q); x.imageSmoothingEnabled=false; x.drawImage(q,110,qy,Q,Q);
+  const cx=110+Q+(W-110-Q-80)/2; x.textAlign='center';
+  x.fillStyle='#555'; x.font='600 34px Barlow, sans-serif'; x.fillText((S.config.einheit||'').toUpperCase(), cx, 430);
+  x.fillStyle='#000'; x.font='700 96px "Barlow Condensed", Arial Narrow, sans-serif'; x.fillText('Getränk', cx, 540); x.fillText('genommen?', cx, 640); x.fillText('Hier scannen!', cx, 760);
+  x.font='600 56px "IBM Plex Mono", monospace'; x.fillText(eur(S.config.preis)+' pro Getränk', cx, 880);
   const blob=await new Promise(r=>c.toBlob(r,'image/png')); download(blob,'Aushang-Selbstbedienung.png');
 }
 
